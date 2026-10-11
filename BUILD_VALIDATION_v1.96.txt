@@ -1,0 +1,10 @@
+Galactic Racer HOSAS / HOTAS Bridge v1.96
+Build validation
+
+- Windows amd64 Go build: PASS
+- Go package compile/test: PASS
+- Source formatted with gofmt: PASS
+- Final-release change: widened the center gutter between the two button/switch mapping columns.
+- v1.96 feature set retained: Clear mapping controls, trigger-help clarification, HOTAS DirectInput diagnostic relocation, working mouse-wheel/scrollbar scrolling, and DirectInput rotational/slider axis binding.
+- go vet: low-level DirectInput COM interop may report existing unsafe.Pointer diagnostics; these are in the native Windows interop layer and were not introduced by the final spacing-only release change.
+- Hardware runtime testing must still be performed on Windows with physical controllers.

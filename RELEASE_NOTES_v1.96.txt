@@ -1,0 +1,28 @@
+v1.96 — Release Notes
+
+MAPPING UX
+- Added a Clear button next to every Learn button in the Xbox/button mapping section and the on-foot WASD button section.
+- Clear immediately removes the saved binding, updates the row to Not assigned, and writes the change to hosas_config.json.
+
+TRIGGER CLARITY
+- Expanded the Right Trigger and Left Trigger help text.
+- The learnable trigger rows are explicitly described as optional manual/redundant controls.
+- Analog Podracer Style and Traditional HOTAS behavior already generate RT/LT automatically; users do not need to learn these rows for normal acceleration/braking.
+
+LIVE INPUT MONITOR
+- Moved the Traditional HOTAS DirectInput Rx/Ry/Rz/Slider 1/Slider 2 readout out of the cramped top configuration row and into the Live Input Monitor area.
+- DirectInput diagnostics still pause while active Xbox output is running to keep UI overhead low.
+
+RETAINED FROM v1.95
+- Working mouse-wheel and scrollbar implementation.
+- Correct DirectInput Rx/Ry/Rz/Slider binding.
+- Podracer Style / Traditional HOTAS modes.
+- Traditional HOTAS Off / Digital at Idle / Analog Brake Zone behavior.
+- Backend-aware WinMM / DirectInput Learn behavior and legacy binding preservation.
+- HidHide setup helper and ViGEm/XInput output lifecycle.
+
+Compatibility note: physical hardware compatibility depends on the device/driver exposing standard WinMM or DirectInput controls.
+
+FINAL RELEASE POLISH
+- Increased horizontal spacing between the two button/switch mapping columns for clearer visual separation.
+- No control-logic or compatibility behavior was changed from the final v1.96 pre-release build.

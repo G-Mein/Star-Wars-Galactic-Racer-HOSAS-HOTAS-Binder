@@ -32,7 +32,7 @@ import (
 var embeddedAppIcon []byte
 
 const (
-	appTitle = "Galactic Racer HOSAS / HOTAS Bridge v1.92 Beta — by JaffaQuake and Mars"
+	appTitle = "Galactic Racer HOSAS / HOTAS Bridge v1.96 — by JaffaQuake and Mars"
 
 	WS_OVERLAPPED  = 0x00000000
 	WS_CAPTION     = 0x00C00000
@@ -63,6 +63,7 @@ const (
 	BS_PUSHBUTTON    = 0x00000000
 	BS_AUTOCHECKBOX  = 0x00000003
 	CBS_DROPDOWNLIST = 0x00000003
+	LBS_NOTIFY       = 0x00000001
 	ES_NUMBER        = 0x00002000
 	SS_LEFT          = 0x00000000
 
@@ -71,17 +72,20 @@ const (
 	SW_SHOWNOACTIVATE = 4
 	SW_SHOW           = 5
 
-	WM_CREATE  = 0x0001
-	WM_DESTROY = 0x0002
-	WM_SIZE    = 0x0005
-	WM_CLOSE   = 0x0010
-	WM_COMMAND = 0x0111
-	WM_HSCROLL = 0x0114
-	WM_VSCROLL = 0x0115
-	WM_TIMER   = 0x0113
-	WM_SETFONT = 0x0030
-	WM_SETICON = 0x0080
-	WM_APP     = 0x8000
+	WM_CREATE       = 0x0001
+	WM_DESTROY      = 0x0002
+	WM_SIZE         = 0x0005
+	WM_CLOSE        = 0x0010
+	WM_LBUTTONDOWN  = 0x0201
+	WM_MOUSEWHEEL   = 0x020A
+	WM_PARENTNOTIFY = 0x0210
+	WM_COMMAND      = 0x0111
+	WM_HSCROLL      = 0x0114
+	WM_VSCROLL      = 0x0115
+	WM_TIMER        = 0x0113
+	WM_SETFONT      = 0x0030
+	WM_SETICON      = 0x0080
+	WM_APP          = 0x8000
 
 	WM_APP_STATUS = WM_APP + 1
 	WM_APP_DETECT = WM_APP + 2
@@ -99,13 +103,25 @@ const (
 	SWP_SHOWWINDOW = 0x0040
 	SWP_HIDEWINDOW = 0x0080
 
+	RDW_INVALIDATE  = 0x0001
+	RDW_ERASE       = 0x0004
+	RDW_ALLCHILDREN = 0x0080
+	RDW_UPDATENOW   = 0x0100
+
 	CB_ADDSTRING    = 0x0143
 	CB_RESETCONTENT = 0x014B
 	CB_GETCURSEL    = 0x0147
 	CB_SETCURSEL    = 0x014E
+	LB_ADDSTRING    = 0x0180
+	LB_RESETCONTENT = 0x0184
+	LB_GETCURSEL    = 0x0188
+	LB_SETCURSEL    = 0x0186
 
 	BN_CLICKED    = 0
 	CBN_SELCHANGE = 1
+	LBN_SELCHANGE = 1
+	LBN_DBLCLK    = 2
+	LBN_KILLFOCUS = 5
 	EN_CHANGE     = 0x0300
 
 	DEFAULT_GUI_FONT = 17
@@ -173,6 +189,9 @@ const (
 	idHotasThrottleDevice
 	idHotasThrottleAxis
 	idHotasThrottleInvert
+	idHotasBrakeBehavior
+	idHotasBrakeThreshold
+	idHotasBrakeZone
 	idHotasStickDevice
 	idHotasStickXAxis
 	idHotasStickYAxis
@@ -229,6 +248,9 @@ const (
 	idRawHIDMonitor
 	idOnFootMode
 	idDIThumbMonitor
+	idHotasDIAxisMonitor
+	idHelpText
+	idComboList = 1700
 	idLearnBase = 1200
 )
 
@@ -236,6 +258,8 @@ const (
 	idWASDLearnBase     = 1500
 	idWASDLabelBase     = 1510
 	idWASDIndicatorBase = 1520
+	idLearnClearBase    = 1600
+	idWASDClearBase     = 1650
 )
 
 type point struct{ X, Y int32 }
@@ -301,10 +325,14 @@ type deviceInfo struct {
 }
 
 type binding struct {
-	Kind     string `json:"kind"`
-	DeviceID int    `json:"device_id"`
-	Button   int    `json:"button,omitempty"`
-	POV      int    `json:"pov,omitempty"`
+	Kind       string `json:"kind"`
+	Backend    string `json:"backend,omitempty"`
+	DeviceID   int    `json:"device_id"`
+	DIGUID     string `json:"di_guid,omitempty"`
+	DeviceName string `json:"device_name,omitempty"`
+	Button     int    `json:"button,omitempty"`
+	POVIndex   int    `json:"pov_index,omitempty"`
+	POV        int    `json:"pov,omitempty"`
 }
 
 type keyOption struct {
@@ -319,6 +347,9 @@ type config struct {
 	HotasThrottleDIGUID    string             `json:"hotas_throttle_di_guid"`
 	HotasThrottleAxis      int                `json:"hotas_throttle_axis"`
 	HotasThrottleInvert    bool               `json:"hotas_throttle_invert"`
+	HotasBrakeBehavior     string             `json:"hotas_brake_behavior"`
+	HotasBrakeThreshold    int                `json:"hotas_brake_threshold"`
+	HotasBrakeZone         int                `json:"hotas_brake_zone"`
 	HotasStickID           int                `json:"hotas_stick_id"`
 	HotasStickDIGUID       string             `json:"hotas_stick_di_guid"`
 	HotasStickXAxis        int                `json:"hotas_stick_x_axis"`
@@ -405,6 +436,9 @@ type xinputState struct {
 
 type monitorState struct {
 	Left, Right, Pedal, Drive, Steer float64
+	Throttle                         float64
+	HotasBrake                       bool
+	HotasBrakeAmount                 float64
 	LeftX, LeftY, RightX, RightY     float64
 	CameraX                          float64
 	OutputButtons                    uint16
@@ -557,7 +591,7 @@ type diJoyState struct {
 	X, Y, Z, Rx, Ry, Rz int32
 	Sliders             [2]int32
 	POV                 [4]uint32
-	Buttons             [32]byte
+	Buttons             [128]byte
 }
 
 type diObjectDataFormat struct {
@@ -639,6 +673,20 @@ var diEnumCallback = syscall.NewCallback(func(pInst, _ uintptr) uintptr {
 
 var diAxisNames = []string{"X", "Y", "Z", "X Rotation (Rx)", "Y Rotation (Ry)", "Z Rotation (Rz)", "Slider 1", "Slider 2"}
 
+// Standard DirectInput object GUIDs. Binding the data format to these exact
+// object types prevents a generic "axis slot" from being mislabeled as Rx/Ry/Rz.
+var (
+	diGUIDXAxis  = diGUID{Data1: 0xA36D02E0, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDYAxis  = diGUID{Data1: 0xA36D02E1, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDZAxis  = diGUID{Data1: 0xA36D02E2, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDRzAxis = diGUID{Data1: 0xA36D02E3, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDSlider = diGUID{Data1: 0xA36D02E4, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDButton = diGUID{Data1: 0xA36D02F0, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDPOV    = diGUID{Data1: 0xA36D02F2, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDRxAxis = diGUID{Data1: 0xA36D02F4, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+	diGUIDRyAxis = diGUID{Data1: 0xA36D02F5, Data2: 0xC9F3, Data3: 0x11CF, Data4: [8]byte{0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}}
+)
+
 func diGUIDString(g diGUID) string {
 	return fmt.Sprintf("%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 		g.Data1, g.Data2, g.Data3, g.Data4[0], g.Data4[1], g.Data4[2], g.Data4[3], g.Data4[4], g.Data4[5], g.Data4[6], g.Data4[7])
@@ -676,15 +724,27 @@ func buildDIDataFormat() ([]diObjectDataFormat, diDataFormat) {
 		didftPOV         = 0x00000010
 		didfAbsAxis      = 0x00000001
 	)
-	objs := make([]diObjectDataFormat, 0, 44)
-	for _, ofs := range []uint32{0, 4, 8, 12, 16, 20, 24, 28} {
-		objs = append(objs, diObjectDataFormat{DwOfs: ofs, DwType: didftAxis | didftAnyInstance | didftOptional})
+	axisType := uint32(didftAxis | didftAnyInstance | didftOptional)
+	povType := uint32(didftPOV | didftAnyInstance | didftOptional)
+	buttonType := uint32(didftButton | didftAnyInstance | didftOptional)
+	objs := make([]diObjectDataFormat, 0, 140)
+	// These offsets match diJoyState/DIJOYSTATE2's position fields exactly.
+	axisDefs := []struct {
+		guid *diGUID
+		ofs  uint32
+	}{
+		{&diGUIDXAxis, 0}, {&diGUIDYAxis, 4}, {&diGUIDZAxis, 8},
+		{&diGUIDRxAxis, 12}, {&diGUIDRyAxis, 16}, {&diGUIDRzAxis, 20},
+		{&diGUIDSlider, 24}, {&diGUIDSlider, 28},
+	}
+	for _, d := range axisDefs {
+		objs = append(objs, diObjectDataFormat{Pguid: uintptr(unsafe.Pointer(d.guid)), DwOfs: d.ofs, DwType: axisType})
 	}
 	for _, ofs := range []uint32{32, 36, 40, 44} {
-		objs = append(objs, diObjectDataFormat{DwOfs: ofs, DwType: didftPOV | didftAnyInstance | didftOptional})
+		objs = append(objs, diObjectDataFormat{Pguid: uintptr(unsafe.Pointer(&diGUIDPOV)), DwOfs: ofs, DwType: povType})
 	}
-	for i := 0; i < 32; i++ {
-		objs = append(objs, diObjectDataFormat{DwOfs: uint32(48 + i), DwType: didftButton | didftAnyInstance | didftOptional})
+	for i := 0; i < 128; i++ {
+		objs = append(objs, diObjectDataFormat{DwOfs: uint32(48 + i), DwType: buttonType})
 	}
 	fmtv := diDataFormat{
 		DwSize: uint32(unsafe.Sizeof(diDataFormat{})), DwObjSize: uint32(unsafe.Sizeof(diObjectDataFormat{})),
@@ -808,6 +868,42 @@ func (m *directInputManager) State(guid string) ([8]int32, bool) {
 	return [8]int32{}, false
 }
 
+func (m *directInputManager) FullState(guid string) (diJoyState, string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, d := range m.devices {
+		if strings.EqualFold(d.GUIDString, guid) {
+			st, ok := m.stateLocked(d)
+			if ok {
+				m.noteActivityLocked(d, diAxes(st))
+			}
+			return st, d.Name, ok
+		}
+	}
+	return diJoyState{}, "", false
+}
+
+type diFullSnapshot struct {
+	GUID  string
+	Name  string
+	State diJoyState
+}
+
+func (m *directInputManager) FullSnapshots() []diFullSnapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]diFullSnapshot, 0, len(m.devices))
+	for _, d := range m.devices {
+		st, ok := m.stateLocked(d)
+		if !ok {
+			continue
+		}
+		m.noteActivityLocked(d, diAxes(st))
+		out = append(out, diFullSnapshot{GUID: d.GUIDString, Name: d.Name, State: st})
+	}
+	return out
+}
+
 func (m *directInputManager) noteActivityLocked(d *diDevice, axes [8]int32) {
 	if d.HaveLast {
 		changed := false
@@ -890,7 +986,7 @@ func (m *directInputManager) StateByGUID(guid string) ([8]int32, string, bool) {
 }
 
 func normalizeDIAbsoluteAxis(v int32, invert bool) float64 {
-	// v1.92 Beta asks DirectInput to expose analog axes as -32768..32767.
+	// v1.96 asks DirectInput to expose analog axes as -32768..32767.
 	var n float64
 	if v < 0 {
 		n = float64(v) / 32768.0
@@ -986,6 +1082,51 @@ func (a *appState) refreshDirectInputMonitor() {
 	setText(h, fmt.Sprintf("DirectInput: %s | %s", st.Name, strings.Join(parts, "   ")))
 }
 
+func formatDIAxis5(axes [8]int32) string {
+	vals := make([]string, 0, 5)
+	for _, idx := range []int{3, 4, 5, 6, 7} {
+		vals = append(vals, fmt.Sprintf("%s %+.2f", diAxisNames[idx], normalizeDIAbsoluteAxis(axes[idx], false)))
+	}
+	return strings.Join(vals, "  ")
+}
+
+func (a *appState) refreshHotasDirectInputMonitor() {
+	h := a.controls[idHotasDIAxisMonitor]
+	if h == 0 {
+		return
+	}
+	a.cfgMu.RLock()
+	c := a.cfg
+	a.cfgMu.RUnlock()
+	if !strings.EqualFold(normalizeControlMode(c.ControlMode), "HOTAS") {
+		return
+	}
+	if a.mappingActive.Load() {
+		setText(h, "DirectInput axes: live Rx/Ry/Rz/Slider values paused while Xbox output is active.")
+		return
+	}
+	if normalizeInputBackend(c.InputBackend) == "WinMM" {
+		setText(h, "DirectInput axes: select Auto or DirectInput to view Rx/Ry/Rz/Slider values here.")
+		return
+	}
+	parts := []string{}
+	if c.HotasStickDIGUID != "" {
+		if ax, name, ok := a.di.StateByGUID(c.HotasStickDIGUID); ok {
+			parts = append(parts, "Stick "+name+": "+formatDIAxis5(ax))
+		}
+	}
+	if c.HotasThrottleDIGUID != "" && !strings.EqualFold(c.HotasThrottleDIGUID, c.HotasStickDIGUID) {
+		if ax, name, ok := a.di.StateByGUID(c.HotasThrottleDIGUID); ok {
+			parts = append(parts, "Throttle "+name+": "+formatDIAxis5(ax))
+		}
+	}
+	if len(parts) == 0 {
+		setText(h, "DirectInput axes: select a Traditional HOTAS stick/throttle device to view Rx/Ry/Rz/Slider values.")
+		return
+	}
+	setText(h, strings.Join(parts, " | "))
+}
+
 type xboxBridge struct {
 	mu                                                             sync.Mutex
 	dll                                                            *syscall.DLL
@@ -1009,39 +1150,46 @@ type appState struct {
 	deviceComboGUIDs map[int][]string
 	axisNames        []string
 
-	uiReady           bool
-	visualsPaused     bool
-	mappingActive     atomic.Bool
-	mappingStarting   atomic.Bool
-	xboxReady         atomic.Bool
-	xboxSlot          atomic.Int32
-	testUntilMu       sync.RWMutex
-	testUntil         time.Time
-	cameraTestMu      sync.RWMutex
-	cameraTestUntil   time.Time
-	cameraTestValue   float64
-	monitorMu         sync.RWMutex
-	monitor           monitorState
-	keyboardMu        sync.Mutex
-	keyboardDown      map[uint16]bool
-	tooltipHwnd       uintptr
-	tooltipTexts      []*uint16
-	tooltipHelp       map[uintptr]string
-	tooltipPopup      uintptr
-	tooltipHover      uintptr
-	baseRects         map[uintptr]rect
-	scrollX           int
-	scrollY           int
-	contentWidth      int
-	contentHeight     int
-	controlHOSASGroup []uintptr
-	controlHOTASGroup []uintptr
-	hosasDrivingGroup []uintptr
-	pedalFineGroup    []uintptr
-	pedalCameraGroup  []uintptr
-	pedalKeyGroup     []uintptr
-	onFootThumbGroup  []uintptr
-	onFootButtonGroup []uintptr
+	uiReady                bool
+	visualsPaused          bool
+	mappingActive          atomic.Bool
+	mappingStarting        atomic.Bool
+	xboxReady              atomic.Bool
+	xboxSlot               atomic.Int32
+	testUntilMu            sync.RWMutex
+	testUntil              time.Time
+	cameraTestMu           sync.RWMutex
+	cameraTestUntil        time.Time
+	cameraTestValue        float64
+	monitorMu              sync.RWMutex
+	monitor                monitorState
+	keyboardMu             sync.Mutex
+	keyboardDown           map[uint16]bool
+	tooltipHwnd            uintptr
+	tooltipTexts           []*uint16
+	tooltipHelp            map[uintptr]string
+	tooltipPopup           uintptr // legacy field; v1.96 renders help inside the main window
+	tooltipHover           uintptr
+	comboOptions           map[int][]string
+	comboSelected          map[int]int
+	comboList              uintptr
+	comboActiveID          int
+	comboHidden            []uintptr // controls temporarily hidden beneath the in-window selector
+	baseRects              map[uintptr]rect
+	scrollX                int
+	scrollY                int
+	contentWidth           int
+	contentHeight          int
+	controlHOSASGroup      []uintptr
+	controlHOTASGroup      []uintptr
+	hotasBrakeDigitalGroup []uintptr
+	hotasBrakeAnalogGroup  []uintptr
+	hosasDrivingGroup      []uintptr
+	pedalFineGroup         []uintptr
+	pedalCameraGroup       []uintptr
+	pedalKeyGroup          []uintptr
+	onFootThumbGroup       []uintptr
+	onFootButtonGroup      []uintptr
 
 	xbox     xboxBridge
 	hid      hidManager
@@ -1084,17 +1232,24 @@ var (
 	procSetWindowTextW           = user32.NewProc("SetWindowTextW")
 	procGetWindowTextW           = user32.NewProc("GetWindowTextW")
 	procSetWindowPos             = user32.NewProc("SetWindowPos")
+	procBeginDeferWindowPos      = user32.NewProc("BeginDeferWindowPos")
+	procDeferWindowPos           = user32.NewProc("DeferWindowPos")
+	procEndDeferWindowPos        = user32.NewProc("EndDeferWindowPos")
+	procRedrawWindow             = user32.NewProc("RedrawWindow")
 	procSetTimer                 = user32.NewProc("SetTimer")
 	procKillTimer                = user32.NewProc("KillTimer")
 	procKeybdEvent               = user32.NewProc("keybd_event")
 	procLoadCursorW              = user32.NewProc("LoadCursorW")
 	procGetCursorPos             = user32.NewProc("GetCursorPos")
 	procGetWindowRect            = user32.NewProc("GetWindowRect")
+	procScreenToClient           = user32.NewProc("ScreenToClient")
 	procGetClientRect            = user32.NewProc("GetClientRect")
 	procSetScrollRange           = user32.NewProc("SetScrollRange")
 	procSetScrollPos             = user32.NewProc("SetScrollPos")
 	procShowScrollBar            = user32.NewProc("ShowScrollBar")
 	procIsWindowVisible          = user32.NewProc("IsWindowVisible")
+	procBringWindowToTop         = user32.NewProc("BringWindowToTop")
+	procSetFocus                 = user32.NewProc("SetFocus")
 	procCreateIconFromResourceEx = user32.NewProc("CreateIconFromResourceEx")
 	procGetModuleHandleW         = kernel32.NewProc("GetModuleHandleW")
 	procGetStockObject           = gdi32.NewProc("GetStockObject")
@@ -1129,6 +1284,7 @@ var buttonOutputs = []struct {
 	{"A", "Xbox A", XUSB_A, 0}, {"B", "Xbox B", XUSB_B, 0},
 	{"X", "Xbox X", XUSB_X, 0}, {"Y", "Xbox Y", XUSB_Y, 0},
 	{"LB", "Left bumper", XUSB_LEFT_SHOULDER, 0}, {"RB", "Right bumper", XUSB_RIGHT_SHOULDER, 0},
+	{"LT", "Left Trigger", 0, 0}, {"RT", "Right Trigger", 0, 0},
 	{"BACK", "Back / View", XUSB_BACK, 0}, {"START", "Start / Menu", XUSB_START, 0},
 	{"LTHUMB", "Left-stick click", XUSB_LEFT_THUMB, 0}, {"RTHUMB", "Right-stick click", XUSB_RIGHT_THUMB, 0},
 	{"DUP", "D-pad Up", XUSB_DPAD_UP, 0}, {"DDOWN", "D-pad Down", XUSB_DPAD_DOWN, 0},
@@ -1567,7 +1723,7 @@ func main() {
 		deviceComboGUIDs: make(map[int][]string),
 		baseRects:        make(map[uintptr]rect),
 		contentWidth:     1130,
-		contentHeight:    1175,
+		contentHeight:    1225,
 		axisNames:        []string{"X", "Y", "Z", "X Rotation (R)", "Y Rotation (U)", "Z Rotation (V)"},
 		tooltipHelp:      make(map[uintptr]string),
 		keyboardDown:     make(map[uint16]bool),
@@ -1647,7 +1803,7 @@ func defaultConfig() config {
 	return config{
 		InputBackend:    "Auto",
 		ControlMode:     "HOSAS",
-		HotasThrottleID: -1, HotasThrottleAxis: 1,
+		HotasThrottleID: -1, HotasThrottleAxis: 1, HotasBrakeBehavior: "Digital at Idle", HotasBrakeThreshold: 5, HotasBrakeZone: 20,
 		HotasStickID: -1, HotasStickXAxis: 0, HotasStickYAxis: 1,
 		LeftID: 0, RightID: 1, PedalID: -1,
 		LeftAxis: 1, RightAxis: 1, PedalAxis: 0,
@@ -1739,6 +1895,22 @@ func loadConfig(c *config) {
 		}
 		if _, ok := rawKeys["hotas_stick_id"]; !ok {
 			tmp.HotasStickID = -1
+		}
+		if _, ok := rawKeys["hotas_brake_behavior"]; !ok {
+			tmp.HotasBrakeBehavior = "Digital at Idle"
+		}
+		tmp.HotasBrakeBehavior = normalizeHotasBrakeBehavior(tmp.HotasBrakeBehavior)
+		if _, ok := rawKeys["hotas_brake_threshold"]; !ok {
+			tmp.HotasBrakeThreshold = 5
+		}
+		if tmp.HotasBrakeThreshold < 0 || tmp.HotasBrakeThreshold > 50 {
+			tmp.HotasBrakeThreshold = 5
+		}
+		if _, ok := rawKeys["hotas_brake_zone"]; !ok {
+			tmp.HotasBrakeZone = 20
+		}
+		if tmp.HotasBrakeZone < 1 || tmp.HotasBrakeZone > 50 {
+			tmp.HotasBrakeZone = 20
 		}
 		maxAxis := 7
 		if normalizeInputBackend(tmp.InputBackend) == "WinMM" {
@@ -1837,6 +2009,11 @@ func loadConfig(c *config) {
 	readInt(raw, "pedal_left_key", &d.PedalLeftKey)
 	readInt(raw, "pedal_right_key", &d.PedalRightKey)
 	readInt(raw, "pedal_key_threshold", &d.PedalKeyThreshold)
+	if b, ok := raw["hotas_brake_behavior"]; ok {
+		_ = json.Unmarshal(b, &d.HotasBrakeBehavior)
+	}
+	readInt(raw, "hotas_brake_threshold", &d.HotasBrakeThreshold)
+	readInt(raw, "hotas_brake_zone", &d.HotasBrakeZone)
 	readBool(raw, "thumb_wasd_enabled", &d.ThumbWASDEnabled)
 	if b, ok := raw["on_foot_mode"]; ok {
 		_ = json.Unmarshal(b, &d.OnFootMode)
@@ -1875,6 +2052,13 @@ func loadConfig(c *config) {
 	}
 	if d.PedalKeyThreshold < 5 || d.PedalKeyThreshold > 95 {
 		d.PedalKeyThreshold = 20
+	}
+	d.HotasBrakeBehavior = normalizeHotasBrakeBehavior(d.HotasBrakeBehavior)
+	if d.HotasBrakeThreshold < 0 || d.HotasBrakeThreshold > 50 {
+		d.HotasBrakeThreshold = 5
+	}
+	if d.HotasBrakeZone < 1 || d.HotasBrakeZone > 50 {
+		d.HotasBrakeZone = 20
 	}
 	if d.ThumbWASDThreshold < 5 || d.ThumbWASDThreshold > 95 {
 		d.ThumbWASDThreshold = 20
@@ -1947,6 +2131,18 @@ func normalizeControlMode(s string) string {
 		return "HOTAS"
 	}
 	return "HOSAS"
+}
+
+func normalizeHotasBrakeBehavior(s string) string {
+	ls := strings.ToLower(strings.TrimSpace(s))
+	switch {
+	case strings.Contains(ls, "analog") || strings.Contains(ls, "zone"):
+		return "Analog Brake Zone"
+	case strings.Contains(ls, "off") || strings.Contains(ls, "none"):
+		return "Off"
+	default:
+		return "Digital at Idle"
+	}
 }
 
 func normalizePedalMode(s string) string {
@@ -2036,9 +2232,27 @@ func readAxis(raw map[string]json.RawMessage, k string, dst *int) {
 func normalizeBindingMap(in map[string]binding) map[string]binding {
 	out := make(map[string]binding)
 	for k, v := range in {
+		if strings.TrimSpace(v.Backend) == "" {
+			v.Backend = "WinMM" // Existing configs predate backend-aware learning.
+		}
+		v.Backend = normalizeBindingBackend(v.Backend)
 		out[normalizeBindingKey(k)] = v
 	}
+	// v1.94 and earlier called the manual LT mapping "BRAKE". Preserve it.
+	if _, exists := out["LT"]; !exists {
+		if old, ok := out["BRAKE"]; ok {
+			out["LT"] = old
+		}
+	}
+	delete(out, "BRAKE")
 	return out
+}
+
+func normalizeBindingBackend(s string) string {
+	if strings.EqualFold(strings.TrimSpace(s), "DirectInput") || strings.EqualFold(strings.TrimSpace(s), "DI") {
+		return "DirectInput"
+	}
+	return "WinMM"
 }
 func normalizeBindingKey(k string) string {
 	s := strings.ToUpper(strings.TrimSpace(k))
@@ -2047,6 +2261,7 @@ func normalizeBindingKey(k string) string {
 	aliases := map[string]string{
 		"XBOXA": "A", "XBOXB": "B", "XBOXX": "X", "XBOXY": "Y",
 		"LEFTBUMPER": "LB", "RIGHTBUMPER": "RB", "L1": "LB", "R1": "RB",
+		"LEFTTRIGGER": "LT", "RIGHTTRIGGER": "RT", "L2": "LT", "R2": "RT", "BRAKE": "LT",
 		"BACKVIEW": "BACK", "VIEW": "BACK", "STARTMENU": "START", "MENU": "START",
 		"LEFTSTICKCLICK": "LTHUMB", "RIGHTSTICKCLICK": "RTHUMB", "LTHUMB": "LTHUMB", "RTHUMB": "RTHUMB",
 		"DPADUP": "DUP", "DPADDOWN": "DDOWN", "DPADLEFT": "DLEFT", "DPADRIGHT": "DRIGHT",
@@ -2404,7 +2619,7 @@ func (a *appState) pollLoop() {
 				ids = append(ids, c.PedalID)
 			}
 			for _, b := range c.Bindings {
-				if b.DeviceID >= 0 {
+				if normalizeBindingBackend(b.Backend) != "DirectInput" && b.DeviceID >= 0 {
 					ids = append(ids, b.DeviceID)
 				}
 			}
@@ -2423,14 +2638,30 @@ func (a *appState) pollLoop() {
 				okmap[id] = ok
 			}
 
+			diStates := make(map[string]diJoyState)
+			diOK := make(map[string]bool)
+			for _, b := range c.Bindings {
+				if normalizeBindingBackend(b.Backend) != "DirectInput" || b.DIGUID == "" {
+					continue
+				}
+				if _, exists := diOK[b.DIGUID]; exists {
+					continue
+				}
+				st, _, ok := a.di.FullState(b.DIGUID)
+				diStates[b.DIGUID] = st
+				diOK[b.DIGUID] = ok
+			}
+
 			l, r := 0.0, 0.0
 			hotasThrottle, hotasX, hotasY := 0.0, 0.0, 0.0
+			hotasThrottleValid := false
 			pedalRaw, p, cameraX := 0.0, 0.0, 0.0
 			isHOTAS := strings.EqualFold(normalizeControlMode(c.ControlMode), "HOTAS")
 			backend := normalizeInputBackend(c.InputBackend)
 			if isHOTAS {
 				if raw, ok := a.readConfiguredAxis(backend, c.HotasThrottleDIGUID, c.HotasThrottleID, c.HotasThrottleAxis, c.HotasThrottleInvert, states, okmap); ok {
 					hotasThrottle = clamp((raw+1.0)/2.0, 0, 1)
+					hotasThrottleValid = true
 				}
 				if raw, ok := a.readConfiguredAxis(backend, c.HotasStickDIGUID, c.HotasStickID, c.HotasStickXAxis, c.HotasStickInvertX, states, okmap); ok {
 					hotasX = applyDeadzone(raw, c.Deadzone)
@@ -2465,8 +2696,35 @@ func (a *appState) pollLoop() {
 
 			drive := calculateDrive(l, r, c.PreserveThrust)
 			steer := clamp(l-r, -1, 1)
+			hotasBrake := false
+			hotasBrakeAmount := 0.0
 			if isHOTAS {
-				drive = hotasThrottle
+				if hotasThrottleValid {
+					switch normalizeHotasBrakeBehavior(c.HotasBrakeBehavior) {
+					case "Off":
+						drive = hotasThrottle
+					case "Analog Brake Zone":
+						zone := clamp(float64(c.HotasBrakeZone)/100.0, 0.01, 0.50)
+						if hotasThrottle <= zone {
+							hotasBrakeAmount = clamp(1.0-hotasThrottle/zone, 0, 1)
+							drive = -hotasBrakeAmount
+						} else {
+							// Rescale the remaining travel so the user still gets full 0..100% RT.
+							drive = clamp((hotasThrottle-zone)/(1.0-zone), 0, 1)
+						}
+					default: // Digital at Idle
+						threshold := clamp(float64(c.HotasBrakeThreshold)/100.0, 0, 0.50)
+						if hotasThrottle <= threshold {
+							hotasBrakeAmount = 1.0
+							drive = -1.0
+						} else {
+							drive = hotasThrottle
+						}
+					}
+				} else {
+					drive = 0
+				}
+				hotasBrake = hotasBrakeAmount > 0.001
 				steer = hotasX
 			}
 			if strings.EqualFold(c.PedalMode, "Fine steering") {
@@ -2475,16 +2733,23 @@ func (a *appState) pollLoop() {
 
 			var buttonMask uint16
 			var outputHighlights uint32
+			manualLT, manualRT := false, false
 			keyboardWanted := make(map[uint16]bool)
 			for i, bo := range buttonOutputs {
 				pressed := false
 				if b, ok := c.Bindings[bo.Key]; ok {
-					pressed = bindingPressed(b, states, okmap)
+					pressed = bindingPressed(b, states, okmap, diStates, diOK)
 				}
 				if pressed {
 					outputHighlights |= uint32(1) << uint(i)
 					if bo.Mask != 0 {
 						buttonMask |= bo.Mask
+					}
+					if bo.Key == "LT" {
+						manualLT = true
+					}
+					if bo.Key == "RT" {
+						manualRT = true
 					}
 				}
 				if bo.VK != 0 {
@@ -2541,7 +2806,7 @@ func (a *appState) pollLoop() {
 				for i, def := range wasdButtonDefs {
 					pressed := false
 					if b, ok := c.Bindings[def.Key]; ok {
-						pressed = bindingPressed(b, states, okmap)
+						pressed = bindingPressed(b, states, okmap, diStates, diOK)
 					}
 					if pressed {
 						onFootHighlights |= uint8(1 << uint(i))
@@ -2578,6 +2843,9 @@ func (a *appState) pollLoop() {
 				Pedal:            p,
 				Drive:            drive,
 				Steer:            steer,
+				Throttle:         hotasThrottle,
+				HotasBrake:       hotasBrake,
+				HotasBrakeAmount: hotasBrakeAmount,
 				LeftX:            leftX,
 				LeftY:            leftY,
 				RightX:           rightX,
@@ -2604,7 +2872,11 @@ func (a *appState) pollLoop() {
 
 				if active {
 					if isHOTAS {
-						rep.RightTrigger = byte(math.Round(clamp(hotasThrottle, 0, 1) * 255))
+						if drive >= 0 {
+							rep.RightTrigger = byte(math.Round(clamp(drive, 0, 1) * 255))
+						} else {
+							rep.LeftTrigger = byte(math.Round(clamp(-drive, 0, 1) * 255))
+						}
 						rep.ThumbLX = floatToStick(steer)
 						rep.ThumbLY = floatToStick(hotasY)
 					} else {
@@ -2617,6 +2889,13 @@ func (a *appState) pollLoop() {
 					}
 					if strings.EqualFold(c.PedalMode, "Move Camera") {
 						rep.ThumbRX = floatToStick(cameraX)
+					}
+					// Learned trigger mappings are independent of the analog drive calculation.
+					if manualLT {
+						rep.LeftTrigger = 255
+					}
+					if manualRT {
+						rep.RightTrigger = 255
 					}
 					rep.Buttons = buttonMask
 				}
@@ -2684,7 +2963,32 @@ func floatToStick(v float64) int16 {
 	return int16(math.Round(v * 32767))
 }
 
-func bindingPressed(b binding, states map[int]joyInfoEx, oks map[int]bool) bool {
+func bindingPressed(b binding, states map[int]joyInfoEx, oks map[int]bool, diStates map[string]diJoyState, diOK map[string]bool) bool {
+	if normalizeBindingBackend(b.Backend) == "DirectInput" || b.DIGUID != "" {
+		if b.DIGUID == "" || !diOK[b.DIGUID] {
+			return false
+		}
+		st := diStates[b.DIGUID]
+		if strings.EqualFold(b.Kind, "button") {
+			if b.Button < 0 || b.Button >= len(st.Buttons) {
+				return false
+			}
+			return st.Buttons[b.Button]&0x80 != 0
+		}
+		if strings.EqualFold(b.Kind, "pov") {
+			idx := b.POVIndex
+			if idx < 0 || idx >= len(st.POV) {
+				idx = 0
+			}
+			v := st.POV[idx]
+			if v == 0xFFFFFFFF {
+				return false
+			}
+			return angleDistance(int(v), b.POV) <= 2300
+		}
+		return false
+	}
+
 	if !oks[b.DeviceID] {
 		return false
 	}
@@ -2996,18 +3300,35 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case WM_COMMAND:
 		app.onCommand(loword(wParam), hiword(wParam))
 		return 0
+	case WM_LBUTTONDOWN:
+		app.closeComboIfPointerOutside()
+		return 0
+	case WM_MOUSEWHEEL:
+		app.closeCombo(false)
+		app.handleMouseWheel(wParam)
+		return 0
+	case WM_PARENTNOTIFY:
+		// Mouse clicks on child controls notify the parent. If a custom selector is
+		// open and the click is outside its list, dismiss it before handling the click.
+		if loword(wParam) == WM_LBUTTONDOWN {
+			app.closeComboIfPointerOutside()
+		}
 	case WM_SIZE:
+		app.closeCombo(false)
 		app.updateScrollbars()
 		return 0
 	case WM_VSCROLL:
+		app.closeCombo(false)
 		app.handleScroll(false, wParam)
 		return 0
 	case WM_HSCROLL:
+		app.closeCombo(false)
 		app.handleScroll(true, wParam)
 		return 0
 	case WM_TIMER:
 		app.refreshMonitor()
 		app.refreshDirectInputMonitor()
+		app.refreshHotasDirectInputMonitor()
 		app.updateHoverTooltip()
 		return 0
 	case WM_APP_STATUS:
@@ -3058,8 +3379,211 @@ func (a *appState) createCheck(text string, x, y, w, h, id int) uintptr {
 	return a.createControl("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX, x, y, w, h, id)
 }
 func (a *appState) createCombo(x, y, w, h, id int) uintptr {
-	return a.createControl("COMBOBOX", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL, x, y, w, h, id)
+	// Capture-friendly picker: the closed selector is a normal child button and the
+	// option list is also a child of this window. Unlike a native COMBOBOX dropdown,
+	// it remains visible in window-only screen sharing/capture.
+	if a.comboOptions == nil {
+		a.comboOptions = make(map[int][]string)
+	}
+	if a.comboSelected == nil {
+		a.comboSelected = make(map[int]int)
+	}
+	a.comboOptions[id] = nil
+	a.comboSelected[id] = 0
+	return a.createButton("Select...  v", x, y, w, 26, id)
 }
+func (a *appState) isComboID(id int) bool {
+	_, ok := a.comboOptions[id]
+	return ok
+}
+
+func (a *appState) comboReset(id int) {
+	a.comboOptions[id] = nil
+	a.comboSelected[id] = 0
+	if h := a.controls[id]; h != 0 {
+		setText(h, "Select...  v")
+	}
+}
+
+func (a *appState) comboAdd(id int, text string) {
+	a.comboOptions[id] = append(a.comboOptions[id], text)
+	if len(a.comboOptions[id]) == 1 {
+		a.comboSelected[id] = 0
+		setText(a.controls[id], text+"  v")
+	}
+}
+
+func (a *appState) ensureComboList() uintptr {
+	if a.comboList != 0 {
+		return a.comboList
+	}
+	list, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(utf16ptr("LISTBOX"))),
+		0,
+		WS_CHILD|WS_TABSTOP|WS_BORDER|WS_VSCROLL|LBS_NOTIFY,
+		0, 0, 100, 100,
+		a.hwnd, uintptr(idComboList), 0, 0,
+	)
+	a.comboList = list
+	if list != 0 && a.font != 0 {
+		procSendMessageW.Call(list, WM_SETFONT, a.font, 1)
+	}
+	return list
+}
+
+func (a *appState) toggleCombo(id int) {
+	if !a.isComboID(id) {
+		return
+	}
+	if a.comboActiveID == id && a.comboList != 0 {
+		a.closeCombo(false)
+		return
+	}
+	a.closeCombo(false)
+	list := a.ensureComboList()
+	if list == 0 {
+		return
+	}
+	procSendMessageW.Call(list, LB_RESETCONTENT, 0, 0)
+	opts := a.comboOptions[id]
+	for _, opt := range opts {
+		procSendMessageW.Call(list, LB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(opt))))
+	}
+	idx := a.comboSelected[id]
+	if idx < 0 || idx >= len(opts) {
+		idx = 0
+	}
+	if len(opts) > 0 {
+		procSendMessageW.Call(list, LB_SETCURSEL, uintptr(idx), 0)
+	}
+
+	button := a.controls[id]
+	var br rect
+	if ok, _, _ := procGetWindowRect.Call(button, uintptr(unsafe.Pointer(&br))); ok == 0 {
+		return
+	}
+	top := point{X: br.Left, Y: br.Top}
+	bottom := point{X: br.Left, Y: br.Bottom}
+	procScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&top)))
+	procScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&bottom)))
+	width := int(br.Right - br.Left)
+	height := len(opts)*22 + 6
+	if height < 56 {
+		height = 56
+	}
+	if height > 220 {
+		height = 220
+	}
+	var client rect
+	procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client)))
+	y := int(bottom.Y)
+	if y+height > int(client.Bottom) && int(top.Y)-height >= 0 {
+		y = int(top.Y) - height
+	}
+	// The selector is intentionally an in-window child so window-only capture can see it.
+	// Native sibling controls can otherwise paint over an overlapping child listbox on
+	// some Windows configurations. Position it at the top of the child Z-order, hide
+	// only the visible siblings underneath its rectangle, then bring it to the top again.
+	procSetWindowPos.Call(list, 0, uintptr(int(top.X)), uintptr(y), uintptr(width), uintptr(height), SWP_SHOWWINDOW)
+	a.hideControlsBehindCombo(list, button)
+	procBringWindowToTop.Call(list)
+	procSetFocus.Call(list)
+	a.comboActiveID = id
+}
+
+func rectsOverlap(a, b rect) bool {
+	return a.Left < b.Right && a.Right > b.Left && a.Top < b.Bottom && a.Bottom > b.Top
+}
+
+func (a *appState) restoreComboHiddenControls() {
+	for _, h := range a.comboHidden {
+		if h != 0 {
+			procShowWindow.Call(h, SW_SHOW)
+		}
+	}
+	a.comboHidden = a.comboHidden[:0]
+}
+
+func (a *appState) hideControlsBehindCombo(list, comboButton uintptr) {
+	a.restoreComboHiddenControls()
+	if list == 0 {
+		return
+	}
+	var listRect rect
+	if ok, _, _ := procGetWindowRect.Call(list, uintptr(unsafe.Pointer(&listRect))); ok == 0 {
+		return
+	}
+	// baseRects tracks every child control created by createControl, including
+	// labels that do not have command IDs and therefore are not in a.controls.
+	for h := range a.baseRects {
+		if h == 0 || h == list || h == comboButton {
+			continue
+		}
+		if vis, _, _ := procIsWindowVisible.Call(h); vis == 0 {
+			continue
+		}
+		var rc rect
+		if ok, _, _ := procGetWindowRect.Call(h, uintptr(unsafe.Pointer(&rc))); ok == 0 {
+			continue
+		}
+		if rectsOverlap(listRect, rc) {
+			procShowWindow.Call(h, SW_HIDE)
+			a.comboHidden = append(a.comboHidden, h)
+		}
+	}
+	procBringWindowToTop.Call(list)
+}
+
+func (a *appState) closeComboIfPointerOutside() {
+	if a.comboList == 0 || a.comboActiveID == 0 {
+		return
+	}
+	var pt point
+	if ok, _, _ := procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt))); ok == 0 {
+		return
+	}
+	var rc rect
+	if ok, _, _ := procGetWindowRect.Call(a.comboList, uintptr(unsafe.Pointer(&rc))); ok == 0 {
+		return
+	}
+	if pt.X >= rc.Left && pt.X < rc.Right && pt.Y >= rc.Top && pt.Y < rc.Bottom {
+		return
+	}
+	// Let a click on the selector button itself reach toggleCombo so it behaves
+	// like a normal dropdown button (clicking it again closes the open list).
+	if button := a.controls[a.comboActiveID]; button != 0 {
+		var br rect
+		if ok, _, _ := procGetWindowRect.Call(button, uintptr(unsafe.Pointer(&br))); ok != 0 {
+			if pt.X >= br.Left && pt.X < br.Right && pt.Y >= br.Top && pt.Y < br.Bottom {
+				return
+			}
+		}
+	}
+	a.closeCombo(false)
+}
+
+func (a *appState) closeCombo(apply bool) {
+	if a.comboList == 0 || a.comboActiveID == 0 {
+		return
+	}
+	id := a.comboActiveID
+	if apply {
+		r, _, _ := procSendMessageW.Call(a.comboList, LB_GETCURSEL, 0, 0)
+		idx := int(int32(r))
+		if idx >= 0 && idx < len(a.comboOptions[id]) {
+			a.comboSelected[id] = idx
+			setText(a.controls[id], a.comboOptions[id][idx]+"  v")
+		}
+	}
+	procShowWindow.Call(a.comboList, SW_HIDE)
+	a.restoreComboHiddenControls()
+	a.comboActiveID = 0
+	if apply {
+		a.onCommand(id, CBN_SELCHANGE)
+	}
+}
+
 func (a *appState) createEdit(text string, x, y, w, h, id int) uintptr {
 	return a.createControl("EDIT", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_NUMBER, x, y, w, h, id)
 }
@@ -3082,24 +3606,19 @@ func (a *appState) addTooltip(control uintptr, text string) {
 	if a.tooltipHelp == nil {
 		a.tooltipHelp = make(map[uintptr]string)
 	}
+	// v1.96 deliberately keeps help inside the main application window. Native Win32
+	// tooltip/dropdown popup windows can float over unrelated apps and can disappear
+	// from window-only screen capture.
 	a.tooltipHelp[control] = text
-	a.initTooltips()
-	if a.tooltipHwnd == 0 {
-		return
-	}
-	p := utf16ptr(text)
-	a.tooltipTexts = append(a.tooltipTexts, p)
-	ti := toolInfo{CbSize: uint32(unsafe.Sizeof(toolInfo{})), UFlags: TTF_IDISHWND | TTF_SUBCLASS, Hwnd: a.hwnd, UId: control, LpszText: p}
-	procSendMessageW.Call(a.tooltipHwnd, TTM_ADDTOOLW, 0, uintptr(unsafe.Pointer(&ti)))
 }
 
 func (a *appState) tooltipForID(id int, text string) { a.addTooltip(a.controls[id], text) }
 
-// updateHoverTooltip is a reliable fallback for systems where the native common-controls
-// tooltip bubble does not render. It checks the mouse against the controls that have help text
-// and shows a small non-activating popup beside the pointer.
+// updateHoverTooltip renders contextual help into the main window instead of a
+// separate top-most tooltip window. This keeps help capture-friendly and prevents
+// it from floating above unrelated applications.
 func (a *appState) updateHoverTooltip() {
-	if len(a.tooltipHelp) == 0 || a.hwnd == 0 {
+	if len(a.tooltipHelp) == 0 || a.hwnd == 0 || a.controls[idHelpText] == 0 {
 		return
 	}
 	var pt point
@@ -3107,7 +3626,7 @@ func (a *appState) updateHoverTooltip() {
 		return
 	}
 	var hovered uintptr
-	var help string
+	help := ""
 	for h, text := range a.tooltipHelp {
 		if vis, _, _ := procIsWindowVisible.Call(h); vis == 0 {
 			continue
@@ -3122,44 +3641,16 @@ func (a *appState) updateHoverTooltip() {
 		}
 	}
 	if hovered == 0 {
-		if a.tooltipPopup != 0 {
-			procShowWindow.Call(a.tooltipPopup, SW_HIDE)
+		if a.tooltipHover != 0 {
+			setText(a.controls[idHelpText], "Help: hover over a control to see what it does.")
+			a.tooltipHover = 0
 		}
-		a.tooltipHover = 0
-		return
-	}
-	if a.tooltipPopup == 0 {
-		ex := uintptr(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT)
-		popup, _, _ := procCreateWindowExW.Call(
-			ex,
-			uintptr(unsafe.Pointer(utf16ptr("STATIC"))),
-			uintptr(unsafe.Pointer(utf16ptr(""))),
-			WS_POPUP|WS_BORDER|SS_LEFT,
-			0, 0, 430, 58,
-			a.hwnd, 0, 0, 0,
-		)
-		a.tooltipPopup = popup
-		if popup != 0 && a.font != 0 {
-			procSendMessageW.Call(popup, WM_SETFONT, a.font, 1)
-		}
-	}
-	if a.tooltipPopup == 0 {
 		return
 	}
 	if hovered != a.tooltipHover {
-		procSetWindowTextW.Call(a.tooltipPopup, uintptr(unsafe.Pointer(utf16ptr("  "+help))))
+		setText(a.controls[idHelpText], "Help: "+help)
 		a.tooltipHover = hovered
 	}
-	x, y := int(pt.X)+18, int(pt.Y)+22
-	// Keep the tooltip away from the far right/bottom edge on common desktop sizes.
-	if x > 1450 {
-		x = int(pt.X) - 448
-	}
-	if y > 900 {
-		y = int(pt.Y) - 80
-	}
-	procSetWindowPos.Call(a.tooltipPopup, ^uintptr(0), uintptr(x), uintptr(y), 430, 58, SWP_NOACTIVATE|SWP_SHOWWINDOW)
-	procShowWindow.Call(a.tooltipPopup, SW_SHOWNOACTIVATE)
 }
 
 func (a *appState) updateScrollbars() {
@@ -3202,15 +3693,64 @@ func (a *appState) updateScrollbars() {
 	a.repositionScrolledChildren()
 }
 
+func (a *appState) redrawAfterScroll() {
+	procRedrawWindow.Call(a.hwnd, 0, 0, RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN|RDW_UPDATENOW)
+}
+
 func (a *appState) repositionScrolledChildren() {
+	// Batch every child move into one layout transaction. Moving each child independently
+	// caused visible tearing/stale separator pixels while dragging the scrollbars.
+	hdwp, _, _ := procBeginDeferWindowPos.Call(uintptr(len(a.baseRects)))
 	for h, r := range a.baseRects {
 		if h == 0 {
 			continue
 		}
 		x := int(r.Left) - a.scrollX
 		y := int(r.Top) - a.scrollY
-		procSetWindowPos.Call(h, 0, uintptr(x), uintptr(y), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
+		if hdwp != 0 {
+			next, _, _ := procDeferWindowPos.Call(hdwp, h, 0, uintptr(x), uintptr(y), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
+			if next != 0 {
+				hdwp = next
+			}
+		} else {
+			procSetWindowPos.Call(h, 0, uintptr(x), uintptr(y), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
+		}
 	}
+	if hdwp != 0 {
+		procEndDeferWindowPos.Call(hdwp)
+	}
+	a.redrawAfterScroll()
+}
+
+func (a *appState) handleMouseWheel(wParam uintptr) {
+	delta := int(int16(hiword(wParam)))
+	if delta == 0 {
+		return
+	}
+	steps := delta / 120
+	if steps == 0 {
+		if delta > 0 {
+			steps = 1
+		} else {
+			steps = -1
+		}
+	}
+	var rc rect
+	procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&rc)))
+	limit := a.contentHeight - int(rc.Bottom-rc.Top)
+	if limit < 0 {
+		limit = 0
+	}
+	// Wheel-up scrolls toward the top; three 20px logical lines per wheel notch.
+	a.scrollY -= steps * 60
+	if a.scrollY < 0 {
+		a.scrollY = 0
+	}
+	if a.scrollY > limit {
+		a.scrollY = limit
+	}
+	procSetScrollPos.Call(a.hwnd, SB_VERT, uintptr(a.scrollY), 1)
+	a.repositionScrolledChildren()
 }
 
 func (a *appState) handleScroll(horizontal bool, wParam uintptr) {
@@ -3357,8 +3897,17 @@ func (a *appState) updateContextVisibility() {
 	}
 	cm := controlModes[ci]
 	a.setGroupVisible(a.controlHOSASGroup, strings.EqualFold(cm, "HOSAS"))
-	a.setGroupVisible(a.controlHOTASGroup, strings.EqualFold(cm, "HOTAS"))
+	isHOTAS := strings.EqualFold(cm, "HOTAS")
+	a.setGroupVisible(a.controlHOTASGroup, isHOTAS)
 	a.setGroupVisible(a.hosasDrivingGroup, strings.EqualFold(cm, "HOSAS"))
+	brakeModes := []string{"Off", "Digital at Idle", "Analog Brake Zone"}
+	bi := comboIndex(idHotasBrakeBehavior)
+	if bi < 0 || bi >= len(brakeModes) {
+		bi = 1
+	}
+	bm := brakeModes[bi]
+	a.setGroupVisible(a.hotasBrakeDigitalGroup, isHOTAS && bm == "Digital at Idle")
+	a.setGroupVisible(a.hotasBrakeAnalogGroup, isHOTAS && bm == "Analog Brake Zone")
 	pedalModes := []string{"Off", "Fine steering", "Move Camera", "Keyboard keys"}
 	pi := comboIndex(idPedalMode)
 	if pi < 0 || pi >= len(pedalModes) {
@@ -3383,7 +3932,7 @@ func (a *appState) createUI() {
 	f, _, _ := procGetStockObject.Call(DEFAULT_GUI_FONT)
 	a.font = f
 
-	a.createLabel("HOSAS / HOTAS -> Xbox 360 bridge for Galactic Racer", 20, 15, 650, 24)
+	a.createLabel("Flight controls -> Xbox 360 bridge for Galactic Racer", 20, 15, 650, 24)
 	a.createLabel("by JaffaQuake and Mars", 820, 15, 260, 24)
 	a.createLabel("Control mode", 830, 50, 95, 22)
 	a.createCombo(925, 44, 185, 160, idControlMode)
@@ -3393,7 +3942,7 @@ func (a *appState) createUI() {
 	a.createButton("HidHide Setup", 960, 104, 150, 28, idHidHideSetup)
 	a.createControl("STATIC", "HidHide: checking...", WS_CHILD|WS_VISIBLE|SS_LEFT, 830, 134, 280, 18, idHidHideStatus)
 
-	// HOSAS controls. Hidden automatically when HOTAS is selected.
+	// Podracer Style controls. Hidden automatically when Traditional HOTAS is selected.
 	a.controlHOSASGroup = append(a.controlHOSASGroup,
 		a.createLabel("HOSAS sticks", 20, 48, 160, 20),
 		a.createLabel("Device", 155, 48, 240, 20),
@@ -3411,7 +3960,7 @@ func (a *appState) createUI() {
 		a.createCheck("Throttle axis", 580, 107, 115, 24, idRightThrottleMode),
 		a.createButton("Detect Right", 705, 104, 110, 28, idDetectRight))
 
-	// HOTAS controls occupy the same space as the HOSAS rows. Throttle is RT-only;
+	// Traditional HOTAS controls occupy the same space as the Podracer rows. Throttle behavior is configurable;
 	// the selected flight stick maps directly to the virtual Xbox left thumbstick.
 	a.controlHOTASGroup = append(a.controlHOTASGroup,
 		a.createLabel("HOTAS", 20, 48, 100, 20),
@@ -3422,7 +3971,8 @@ func (a *appState) createUI() {
 		a.createCombo(150, 72, 240, 260, idHotasThrottleDevice),
 		a.createCombo(405, 72, 85, 220, idHotasThrottleAxis),
 		a.createCheck("Invert", 500, 73, 75, 24, idHotasThrottleInvert),
-		a.createLabel("RT / forward only", 585, 76, 115, 22),
+		a.createLabel("Brake behavior", 580, 48, 105, 20),
+		a.createCombo(580, 72, 150, 160, idHotasBrakeBehavior),
 		a.createLabel("Flight stick", 20, 110, 120, 24),
 		a.createCombo(150, 106, 240, 260, idHotasStickDevice),
 		a.createCombo(405, 106, 85, 220, idHotasStickXAxis),
@@ -3430,6 +3980,18 @@ func (a *appState) createUI() {
 		a.createCheck("Invert X", 590, 107, 78, 24, idHotasStickInvertX),
 		a.createCheck("Invert Y", 670, 107, 78, 24, idHotasStickInvertY))
 
+	a.hotasBrakeDigitalGroup = append(a.hotasBrakeDigitalGroup,
+		a.createLabel("Idle %", 735, 76, 48, 22),
+		a.createEdit("5", 783, 72, 40, 25, idHotasBrakeThreshold))
+	a.hotasBrakeAnalogGroup = append(a.hotasBrakeAnalogGroup,
+		a.createLabel("Zone %", 735, 76, 48, 22),
+		a.createEdit("20", 783, 72, 40, 25, idHotasBrakeZone))
+	for _, h := range a.hotasBrakeDigitalGroup {
+		a.controlHOTASGroup = append(a.controlHOTASGroup, h)
+	}
+	for _, h := range a.hotasBrakeAnalogGroup {
+		a.controlHOTASGroup = append(a.controlHOTASGroup, h)
+	}
 	a.createLabel("Rudder pedals", 20, 154, 130, 20)
 	a.createLabel("Pedal device", 20, 182, 115, 24)
 	a.createCombo(150, 178, 240, 260, idPedalDevice)
@@ -3475,13 +4037,14 @@ func (a *appState) createUI() {
 	diMon := a.createControl("STATIC", "DirectInput axis monitor: waiting for game-controller data...", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 300, 1100, 52, idDIThumbMonitor)
 	a.onFootThumbGroup = append(a.onFootThumbGroup, diMon)
 
-	// Buttons -> WASD contextual controls. Each direction learns a normal VKB button/hat/switch.
+	// Buttons -> WASD contextual controls. Each direction learns a controller button/hat/switch.
 	for i, def := range wasdButtonDefs {
 		x := 20 + i*275
-		indicator := a.createControl("BUTTON", def.Label, WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, x, 300, 55, 28, idWASDIndicatorBase+i)
-		label := a.createControl("STATIC", "Not assigned", WS_CHILD|WS_VISIBLE|SS_LEFT, x+62, 305, 138, 22, idWASDLabelBase+i)
-		learn := a.createButton("Learn", x+205, 300, 60, 28, idWASDLearnBase+i)
-		a.onFootButtonGroup = append(a.onFootButtonGroup, indicator, label, learn)
+		indicator := a.createControl("BUTTON", def.Label, WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, x, 300, 45, 28, idWASDIndicatorBase+i)
+		label := a.createControl("STATIC", "Not assigned", WS_CHILD|WS_VISIBLE|SS_LEFT, x+50, 305, 95, 22, idWASDLabelBase+i)
+		learn := a.createButton("Learn", x+150, 300, 50, 28, idWASDLearnBase+i)
+		clear := a.createButton("Clear", x+205, 300, 50, 28, idWASDClearBase+i)
+		a.onFootButtonGroup = append(a.onFootButtonGroup, indicator, label, learn, clear)
 	}
 
 	a.createLabel("Driving", 20, 392, 100, 20)
@@ -3492,19 +4055,22 @@ func (a *appState) createUI() {
 		a.createCheck("Hybrid preserve thrust", 200, 416, 190, 26, idPreserve),
 		a.createLabel("Forward steering keeps thrust; pulling one stick behind center progressively scrubs it.", 400, 420, 555, 30))
 
-	a.createButton("Start mapping", 20, 460, 125, 32, idStart)
-	a.createButton("Test Xbox A", 155, 460, 110, 32, idTestA)
-	a.createButton("Camera Left", 275, 460, 110, 32, idTestCamLeft)
-	a.createButton("Camera Right", 395, 460, 110, 32, idTestCamRight)
-	a.createButton("Save settings", 515, 460, 115, 32, idSave)
-	a.createLabel("Polling rate", 660, 467, 85, 22)
-	a.createCombo(745, 460, 105, 180, idPollingRate)
-	a.createLabel("Hz", 855, 467, 30, 22)
+	a.createButton("Initiate Xbox Controller", 20, 460, 180, 32, idStart)
+	a.createButton("Test Xbox A", 210, 460, 105, 32, idTestA)
+	a.createButton("Camera Left", 325, 460, 105, 32, idTestCamLeft)
+	a.createButton("Camera Right", 440, 460, 110, 32, idTestCamRight)
+	a.createButton("Save settings", 560, 460, 115, 32, idSave)
+	a.createLabel("Polling rate", 700, 467, 85, 22)
+	a.createCombo(785, 460, 105, 180, idPollingRate)
+	a.createLabel("Hz", 895, 467, 30, 22)
 
 	a.createLabel("LIVE INPUT MONITOR", 20, 508, 170, 20)
 	a.createControl("STATIC", "Waiting for devices...", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 533, 545, 56, idMonitor)
-	a.createControl("STATIC", "Virtual Xbox disconnected. Click Start mapping to create it.", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 593, 545, 45, idStatus)
+	a.createControl("STATIC", "Virtual Xbox disconnected. Click Initiate Xbox Controller to create it.", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 593, 545, 45, idStatus)
 	a.createControl("STATIC", "XInput readback: disconnected", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 643, 545, 28, idXInputReadback)
+	hotasDI := a.createControl("STATIC", "HOTAS DirectInput live: waiting for selected devices...", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 675, 1090, 42, idHotasDIAxisMonitor)
+	a.controlHOTASGroup = append(a.controlHOTASGroup, hotasDI)
+	a.createControl("STATIC", "Help: hover over a control to see what it does.", WS_CHILD|WS_VISIBLE|WS_BORDER|SS_LEFT, 20, 730, 1090, 32, idHelpText)
 
 	const boxSize = 126
 	leftBoxX, boxY := 600, 542
@@ -3529,25 +4095,29 @@ func (a *appState) createUI() {
 	a.createControl("STATIC", "Side +0.00  F +0.00", WS_CHILD|WS_VISIBLE|SS_LEFT, rightBoxX, boxY+boxSize+22, 155, 20, idRightVectorText)
 	a.createControl("STATIC", "Drive +0.00 Neutral\r\nSteer +0.00 Straight", WS_CHILD|WS_VISIBLE|SS_LEFT, outputBoxX-5, boxY+boxSize+20, 185, 38, idDriveSteerVectorText)
 
-	a.createLabel("Button / switch mapping - Xbox outputs plus native keyboard camera views", 20, 736, 760, 22)
-	startY := 766
+	a.createLabel("Button / switch mapping - Xbox outputs, manual brake, plus native keyboard camera views", 20, 770, 760, 22)
+	startY := 800
 	rowsPerCol := (len(buttonOutputs) + 1) / 2
 	for i, bo := range buttonOutputs {
 		col := i / rowsPerCol
 		row := i % rowsPerCol
-		x := 20 + col*535
+		x := 20 + col*580
 		y := startY + row*37
 		a.createControl("BUTTON", bo.Label, WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, x, y, 118, 28, idLearnBase+200+i)
 		a.createControl("STATIC", "Not assigned", WS_CHILD|WS_VISIBLE|SS_LEFT, x+125, y+5, 255, 22, idLearnBase+100+i)
 		a.createButton("Learn", x+390, y, 80, 28, idLearnBase+i)
+		a.createButton("Clear", x+475, y, 60, 28, idLearnClearBase+i)
 	}
 
 	// Hover help.
-	a.tooltipForID(idControlMode, "HOSAS / Podracer Style combines two forward/back stick axes into thrust and differential steering. HOTAS / Traditional Steering uses a dedicated throttle for RT/forward and a flight stick as the Xbox left thumbstick.")
-	a.tooltipForID(idInputBackend, "Axis input backend. Auto uses DirectInput first and falls back to WinMM when possible. DirectInput exposes X/Y/Z, Rx/Ry/Rz and Slider 1/2. WinMM keeps the known-good legacy six-axis path. Learned buttons/hats remain on the stable WinMM path in this beta.")
-	a.tooltipForID(idHidHideSetup, "Optional double-input protection. If HidHide is installed, this registers this mapper on HidHide's allowlist and opens the official configuration client so you can hide the physical controllers from games. v1.92 Beta does not automatically choose devices to hide.")
+	a.tooltipForID(idControlMode, "Podracer Style uses two flight controls as a differential pair: both contribute to thrust and their difference controls steering. Traditional HOTAS uses a dedicated throttle for acceleration/braking behavior and a flight stick for conventional Xbox left-stick steering.")
+	a.tooltipForID(idInputBackend, "Axis input backend. Auto uses DirectInput first and falls back to WinMM when possible. DirectInput exposes X/Y/Z, Rx/Ry/Rz and Slider 1/2. WinMM keeps the known-good legacy six-axis path. Learned buttons/hats use the selected Input API. Existing WinMM bindings remain WinMM; DirectInput bindings are stored separately by device GUID.")
+	a.tooltipForID(idHidHideSetup, "Optional double-input protection. If HidHide is installed, this registers this mapper on HidHide's allowlist and opens the official configuration client so you can hide the physical controllers from games. v1.96 does not automatically choose devices to hide.")
 	a.tooltipForID(idHotasThrottleDevice, "HOTAS throttle device. Its selected axis is converted to Xbox Right Trigger from 0% to 100% forward thrust only.")
 	a.tooltipForID(idHotasThrottleAxis, "Physical throttle axis. Full aft maps to RT 0%; full forward maps to RT 100%. Use Invert if the direction is backwards.")
+	a.tooltipForID(idHotasBrakeBehavior, "Choose Traditional HOTAS throttle braking: Off, Digital at Idle, or Analog Brake Zone. Digital applies full LT at the idle threshold. Analog reserves the bottom throttle zone for proportional LT braking and rescales the remaining travel to full RT acceleration.")
+	a.tooltipForID(idHotasBrakeThreshold, "Idle Brake Threshold %. Used only by Digital at Idle. At or below this throttle percentage, LT is 100%; above it, brake releases and RT follows the throttle normally.")
+	a.tooltipForID(idHotasBrakeZone, "Brake Zone %. Used only by Analog Brake Zone. The bottom part of throttle travel becomes proportional LT braking: minimum = 100% brake, fading to 0% across the zone. Remaining travel is rescaled to full 0-100% RT.")
 	a.tooltipForID(idHotasStickDevice, "HOTAS flight stick device. Its selected X/Y axes map directly to the Xbox left thumbstick.")
 	a.tooltipForID(idHotasStickXAxis, "Physical flight-stick horizontal axis mapped to Xbox Left Stick X.")
 	a.tooltipForID(idHotasStickYAxis, "Physical flight-stick vertical axis mapped to Xbox Left Stick Y.")
@@ -3558,8 +4128,8 @@ func (a *appState) createUI() {
 	a.tooltipForID(idRefresh, "Rescan Windows for connected controller devices and restart the DirectInput device list.")
 	a.tooltipForID(idDetectWASD, "DirectInput thumbstick detection: push the small stick RIGHT, return to center, then push it FORWARD. This reads the same X/Y Rotation path that joy.cpl uses.")
 	a.tooltipForID(idOnFootMode, "Choose how on-foot W/A/S/D is produced: analog thumbstick, learned stick buttons/hats, or off.")
-	a.tooltipForID(idStart, "Create the virtual Xbox controller and begin sending HOSAS, keyboard, pedal, and learned-button outputs to the game. Stop Mapping removes the virtual controller.")
-	a.tooltipForID(idTestA, "Send a short Xbox A-button pulse through the virtual controller. Start Mapping must be active.")
+	a.tooltipForID(idStart, "Creates the virtual Xbox controller and begins sending configured controller/keyboard outputs to the game. Deactivate Xbox Controller removes the virtual controller.")
+	a.tooltipForID(idTestA, "Send a short Xbox A-button pulse through the virtual controller. Initiate Xbox Controller must be active.")
 	a.tooltipForID(idTestCamLeft, "Force virtual Xbox Right Stick X fully left briefly. Useful for camera-output diagnostics.")
 	a.tooltipForID(idTestCamRight, "Force virtual Xbox Right Stick X fully right briefly. Useful for camera-output diagnostics.")
 	a.tooltipForID(idSave, "Save the current device, axis, deadzone, polling-rate, pedal, on-foot, and learned-button settings.")
@@ -3569,11 +4139,23 @@ func (a *appState) createUI() {
 	a.tooltipForID(idPedalLeftKey, "Keyboard key held when the pedal axis moves left past the configured threshold.")
 	a.tooltipForID(idPedalRightKey, "Keyboard key held when the pedal axis moves right past the configured threshold.")
 	for i, bo := range buttonOutputs {
-		a.tooltipForID(idLearnBase+i, "Click Learn, then press the physical VKB button/hat/switch you want assigned to "+bo.Label+".")
+		a.tooltipForID(idLearnBase+i, "Click Learn, then press the controller button/hat/switch you want assigned to "+bo.Label+".")
 		a.tooltipForID(idLearnBase+200+i, "Live indicator for "+bo.Label+". It highlights when the learned physical input is pressed while the visual monitor is active.")
+		a.tooltipForID(idLearnClearBase+i, "Clear the saved "+bo.Label+" assignment and return it to Not assigned.")
+		if bo.Key == "LT" {
+			msg := "Optional manual Left Trigger mapping. Your analog controls already generate LT automatically when the selected control mode/brake behavior calls for braking or reverse. You do not need to assign this for normal braking; use it only if you also want a button/hat to send full LT on demand."
+			a.tooltipForID(idLearnBase+i, msg)
+			a.tooltipForID(idLearnBase+200+i, msg)
+		}
+		if bo.Key == "RT" {
+			msg := "Optional manual Right Trigger mapping. Acceleration is already generated automatically by the analog Podracer Style or Traditional HOTAS controls. You do not need to assign this for normal thrust; use it only if you also want a button/hat to send full RT on demand."
+			a.tooltipForID(idLearnBase+i, msg)
+			a.tooltipForID(idLearnBase+200+i, msg)
+		}
 	}
 	for i, def := range wasdButtonDefs {
-		a.tooltipForID(idWASDLearnBase+i, "Click Learn, then press the physical VKB button/hat/switch that should generate "+def.Label+" for on-foot movement.")
+		a.tooltipForID(idWASDLearnBase+i, "Click Learn, then press the controller button/hat/switch that should generate "+def.Label+" for on-foot movement.")
+		a.tooltipForID(idWASDClearBase+i, "Clear the saved "+def.Label+" on-foot assignment and return it to Not assigned.")
 		a.tooltipForID(idWASDIndicatorBase+i, "Live indicator for the learned "+def.Label+" movement input.")
 	}
 
@@ -3596,18 +4178,16 @@ func (a *appState) populateCombos() {
 		devs := append([]deviceInfo(nil), a.devices...)
 		a.devicesMu.RUnlock()
 		for _, id := range deviceIDs {
-			h := a.controls[id]
-			procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+			a.comboReset(id)
 			ids := []int{}
 			guids := []string{}
 			if id == idPedalDevice || id == idHotasThrottleDevice || id == idHotasStickDevice {
-				procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr("None"))))
+				a.comboAdd(id, "None")
 				ids = append(ids, -1)
 				guids = append(guids, "")
 			}
 			for _, d := range devs {
-				txt := fmt.Sprintf("%s [WinMM ID %d]", d.Name, d.ID)
-				procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(txt))))
+				a.comboAdd(id, fmt.Sprintf("%s [WinMM ID %d]", d.Name, d.ID))
 				ids = append(ids, d.ID)
 				guids = append(guids, "")
 			}
@@ -3617,14 +4197,12 @@ func (a *appState) populateCombos() {
 	} else {
 		devs := a.di.DeviceList()
 		for _, id := range deviceIDs {
-			h := a.controls[id]
-			procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+			a.comboReset(id)
 			ids := []int{-1}
 			guids := []string{""}
-			procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr("None"))))
+			a.comboAdd(id, "None")
 			for _, d := range devs {
-				txt := fmt.Sprintf("%s [DirectInput]", d.Name)
-				procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(txt))))
+				a.comboAdd(id, fmt.Sprintf("%s [DirectInput]", d.Name))
 				ids = append(ids, a.matchWinMMIDByName(d.Name))
 				guids = append(guids, d.GUID)
 			}
@@ -3638,47 +4216,45 @@ func (a *appState) populateCombos() {
 		axisList = diAxisNames
 	}
 	for _, id := range []int{idLeftAxis, idRightAxis, idPedalAxis, idHotasThrottleAxis, idHotasStickXAxis, idHotasStickYAxis} {
-		h := a.controls[id]
-		procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+		a.comboReset(id)
 		for _, name := range axisList {
-			procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(name))))
+			a.comboAdd(id, name)
 		}
 	}
 
-	h := a.controls[idInputBackend]
-	procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+	a.comboReset(idInputBackend)
 	for _, mode := range []string{"Auto (DirectInput first)", "DirectInput", "WinMM (compatibility)"} {
-		procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(mode))))
+		a.comboAdd(idInputBackend, mode)
 	}
 
-	h = a.controls[idControlMode]
-	procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
-	for _, mode := range []string{"HOSAS / Podracer Style", "HOTAS / Traditional Steering"} {
-		procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(mode))))
+	a.comboReset(idControlMode)
+	for _, mode := range []string{"Podracer Style", "Traditional HOTAS"} {
+		a.comboAdd(idControlMode, mode)
 	}
 
-	h = a.controls[idPedalMode]
-	procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+	a.comboReset(idHotasBrakeBehavior)
+	for _, mode := range []string{"Off", "Digital at Idle", "Analog Brake Zone"} {
+		a.comboAdd(idHotasBrakeBehavior, mode)
+	}
+
+	a.comboReset(idPedalMode)
 	for _, mode := range []string{"Off", "Fine steering", "Move Camera", "Keyboard keys"} {
-		procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(mode))))
+		a.comboAdd(idPedalMode, mode)
 	}
 
-	h = a.controls[idOnFootMode]
-	procSendMessageW.Call(h, CB_RESETCONTENT, 0, 0)
+	a.comboReset(idOnFootMode)
 	for _, mode := range []string{"Off", "Thumbstick -> WASD", "Buttons -> WASD"} {
-		procSendMessageW.Call(h, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(mode))))
+		a.comboAdd(idOnFootMode, mode)
 	}
 
-	hp := a.controls[idPollingRate]
-	procSendMessageW.Call(hp, CB_RESETCONTENT, 0, 0)
+	a.comboReset(idPollingRate)
 	for _, hz := range pollingRateOptions {
-		procSendMessageW.Call(hp, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(fmt.Sprintf("%d", hz)))))
+		a.comboAdd(idPollingRate, fmt.Sprintf("%d", hz))
 	}
 	for _, id := range []int{idPedalLeftKey, idPedalRightKey} {
-		hk := a.controls[id]
-		procSendMessageW.Call(hk, CB_RESETCONTENT, 0, 0)
+		a.comboReset(id)
 		for _, k := range keyboardKeyOptions {
-			procSendMessageW.Call(hk, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16ptr(k.Name))))
+			a.comboAdd(id, k.Name)
 		}
 	}
 }
@@ -3715,6 +4291,16 @@ func (a *appState) applyConfigToUI() {
 	}
 	comboSetIndex(idHotasThrottleAxis, c.HotasThrottleAxis)
 	setChecked(a.controls[idHotasThrottleInvert], c.HotasThrottleInvert)
+	brakeModeIdx := 1
+	switch normalizeHotasBrakeBehavior(c.HotasBrakeBehavior) {
+	case "Off":
+		brakeModeIdx = 0
+	case "Analog Brake Zone":
+		brakeModeIdx = 2
+	}
+	comboSetIndex(idHotasBrakeBehavior, brakeModeIdx)
+	setText(a.controls[idHotasBrakeThreshold], strconv.Itoa(c.HotasBrakeThreshold))
+	setText(a.controls[idHotasBrakeZone], strconv.Itoa(c.HotasBrakeZone))
 	comboSetIndex(idHotasStickXAxis, c.HotasStickXAxis)
 	comboSetIndex(idHotasStickYAxis, c.HotasStickYAxis)
 	setChecked(a.controls[idHotasStickInvertX], c.HotasStickInvertX)
@@ -3769,10 +4355,19 @@ func (a *appState) applyConfigToUI() {
 }
 
 func comboSetIndex(id, idx int) {
+	opts := app.comboOptions[id]
+	if len(opts) == 0 {
+		app.comboSelected[id] = 0
+		return
+	}
 	if idx < 0 {
 		idx = 0
 	}
-	procSendMessageW.Call(app.controls[id], CB_SETCURSEL, uintptr(idx), 0)
+	if idx >= len(opts) {
+		idx = len(opts) - 1
+	}
+	app.comboSelected[id] = idx
+	setText(app.controls[id], opts[idx]+"  v")
 }
 func comboSetDevice(id, deviceID int) {
 	ids := app.deviceComboIDs[id]
@@ -3783,7 +4378,7 @@ func comboSetDevice(id, deviceID int) {
 			break
 		}
 	}
-	procSendMessageW.Call(app.controls[id], CB_SETCURSEL, uintptr(idx), 0)
+	comboSetIndex(id, idx)
 }
 func comboSetGUID(id int, guid string) {
 	guids := app.deviceComboGUIDs[id]
@@ -3794,7 +4389,7 @@ func comboSetGUID(id int, guid string) {
 			break
 		}
 	}
-	procSendMessageW.Call(app.controls[id], CB_SETCURSEL, uintptr(idx), 0)
+	comboSetIndex(id, idx)
 }
 
 func comboGUID(id int) string {
@@ -3824,11 +4419,11 @@ func getText(h uintptr) string {
 	return syscall.UTF16ToString(buf[:int(n)])
 }
 func comboIndex(id int) int {
-	r, _, _ := procSendMessageW.Call(app.controls[id], CB_GETCURSEL, 0, 0)
-	if int64(r) < 0 {
+	idx, ok := app.comboSelected[id]
+	if !ok || idx < 0 {
 		return 0
 	}
-	return int(r)
+	return idx
 }
 func comboDevice(id int) int {
 	idx := comboIndex(id)
@@ -3878,6 +4473,30 @@ func (a *appState) syncConfigFromUI() {
 	}
 	c.HotasThrottleAxis = comboIndex(idHotasThrottleAxis)
 	c.HotasThrottleInvert = isChecked(a.controls[idHotasThrottleInvert])
+	brakeBehaviors := []string{"Off", "Digital at Idle", "Analog Brake Zone"}
+	bbi := comboIndex(idHotasBrakeBehavior)
+	if bbi < 0 || bbi >= len(brakeBehaviors) {
+		bbi = 1
+	}
+	c.HotasBrakeBehavior = brakeBehaviors[bbi]
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idHotasBrakeThreshold]))); e == nil {
+		if n < 0 {
+			n = 0
+		}
+		if n > 50 {
+			n = 50
+		}
+		c.HotasBrakeThreshold = n
+	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idHotasBrakeZone]))); e == nil {
+		if n < 1 {
+			n = 1
+		}
+		if n > 50 {
+			n = 50
+		}
+		c.HotasBrakeZone = n
+	}
 	c.HotasStickXAxis = comboIndex(idHotasStickXAxis)
 	c.HotasStickYAxis = comboIndex(idHotasStickYAxis)
 	c.HotasStickInvertX = isChecked(a.controls[idHotasStickInvertX])
@@ -3972,6 +4591,21 @@ func (a *appState) syncConfigFromUI() {
 }
 
 func (a *appState) onCommand(id, notify int) {
+	if id == idComboList && (notify == LBN_SELCHANGE || notify == LBN_DBLCLK) {
+		a.closeCombo(true)
+		return
+	}
+	if id == idComboList && notify == LBN_KILLFOCUS {
+		a.closeCombo(false)
+		return
+	}
+	if a.isComboID(id) && notify == BN_CLICKED {
+		a.toggleCombo(id)
+		return
+	}
+	if a.comboActiveID != 0 {
+		a.closeCombo(false)
+	}
 	switch {
 	case id == idStart && notify == BN_CLICKED:
 		if a.mappingStarting.Load() {
@@ -3985,13 +4619,13 @@ func (a *appState) onCommand(id, notify int) {
 		a.syncConfigFromUI()
 		saveConfig()
 		a.mappingStarting.Store(true)
-		setText(a.controls[idStart], "Starting...")
-		a.postStatus("Creating virtual Xbox controller for active mapping...")
+		setText(a.controls[idStart], "Initiating...")
+		a.postStatus("Initiating virtual Xbox controller...")
 		go a.startMappingAsync()
 		return
 	case id == idTestA && notify == BN_CLICKED:
 		if !a.xboxReady.Load() {
-			a.postStatus("Start mapping first; the virtual Xbox controller is intentionally disconnected while mapping is stopped.")
+			a.postStatus("Initiate Xbox Controller first; the virtual Xbox controller is intentionally disconnected while output is inactive.")
 			return
 		}
 		a.testUntilMu.Lock()
@@ -4001,7 +4635,7 @@ func (a *appState) onCommand(id, notify int) {
 		return
 	case id == idTestCamLeft && notify == BN_CLICKED:
 		if !a.xboxReady.Load() {
-			a.postStatus("Start mapping first; the virtual Xbox controller is intentionally disconnected while mapping is stopped.")
+			a.postStatus("Initiate Xbox Controller first; the virtual Xbox controller is intentionally disconnected while output is inactive.")
 			return
 		}
 		a.cameraTestMu.Lock()
@@ -4012,7 +4646,7 @@ func (a *appState) onCommand(id, notify int) {
 		return
 	case id == idTestCamRight && notify == BN_CLICKED:
 		if !a.xboxReady.Load() {
-			a.postStatus("Start mapping first; the virtual Xbox controller is intentionally disconnected while mapping is stopped.")
+			a.postStatus("Initiate Xbox Controller first; the virtual Xbox controller is intentionally disconnected while output is inactive.")
 			return
 		}
 		a.cameraTestMu.Lock()
@@ -4047,6 +4681,14 @@ func (a *appState) onCommand(id, notify int) {
 		return
 	case id == idDetectWASD && notify == BN_CLICKED:
 		a.startDetectThumbstick()
+		return
+	case id >= idWASDClearBase && id < idWASDClearBase+len(wasdButtonDefs) && notify == BN_CLICKED:
+		def := wasdButtonDefs[id-idWASDClearBase]
+		a.clearBinding(def.Key, def.Label+" (on-foot)")
+		return
+	case id >= idLearnClearBase && id < idLearnClearBase+len(buttonOutputs) && notify == BN_CLICKED:
+		def := buttonOutputs[id-idLearnClearBase]
+		a.clearBinding(def.Key, def.Label)
 		return
 	case id >= idWASDLearnBase && id < idWASDLearnBase+len(wasdButtonDefs) && notify == BN_CLICKED:
 		def := wasdButtonDefs[id-idWASDLearnBase]
@@ -4100,14 +4742,14 @@ func (a *appState) refreshXboxUI() {
 		return
 	}
 	if a.mappingStarting.Load() {
-		setText(a.controls[idStart], "Starting...")
+		setText(a.controls[idStart], "Initiating...")
 		return
 	}
 	if a.mappingActive.Load() && a.xboxReady.Load() {
-		setText(a.controls[idStart], "Stop mapping")
+		setText(a.controls[idStart], "Deactivate Xbox Controller")
 		return
 	}
-	setText(a.controls[idStart], "Start mapping")
+	setText(a.controls[idStart], "Initiate Xbox Controller")
 }
 
 func (a *appState) refreshXInputReadback() {
@@ -4219,11 +4861,11 @@ func (a *appState) refreshMonitor() {
 	}
 	a.visualsPaused = false
 
-	mode := "Average thrust"
+	mode := "Podracer Style: Average thrust"
 	if strings.EqualFold(normalizeControlMode(c.ControlMode), "HOTAS") {
-		mode = "HOTAS: throttle -> RT, flight stick -> Xbox LS"
+		mode = "Traditional HOTAS"
 	} else if c.PreserveThrust {
-		mode = "Hybrid preserve thrust"
+		mode = "Podracer Style: Hybrid preserve thrust"
 	}
 	pedal := "Off"
 	if c.PedalID >= 0 {
@@ -4237,9 +4879,10 @@ func (a *appState) refreshMonitor() {
 	}
 	var s string
 	if strings.EqualFold(normalizeControlMode(c.ControlMode), "HOTAS") {
+		brakeText := fmt.Sprintf("%.0f%%", m.HotasBrakeAmount*100.0)
 		s = fmt.Sprintf(
-			"Throttle %+0.2f   Stick X %+0.2f   Stick Y %+0.2f   Pedal %s   Pedal output %s\r\n%s",
-			m.Drive, m.LeftX, m.LeftY, pedal, camera, mode,
+			"Throttle %.2f   Brake %s   Stick X %+0.2f   Stick Y %+0.2f   Pedal %s   Pedal output %s\r\n%s",
+			m.Throttle, brakeText, m.LeftX, m.LeftY, pedal, camera, mode,
 		)
 	} else {
 		s = fmt.Sprintf(
@@ -4595,52 +5238,173 @@ func (a *appState) drainDetect() {
 }
 
 func (a *appState) startLearn(key, label string) {
-	a.postStatus(fmt.Sprintf("Learning %s: press the VKB button, trigger, hat, or switch position you want...", label))
+	a.cfgMu.RLock()
+	backend := normalizeInputBackend(a.cfg.InputBackend)
+	a.cfgMu.RUnlock()
+	a.postStatus(fmt.Sprintf("Learning %s using %s: press the controller button, trigger, hat, or switch position you want...", label, backend))
 	go func() {
-		devs := enumerateDevices()
-		type baseline struct {
-			buttons uint32
-			pov     uint32
+		var b binding
+		var ok bool
+		switch backend {
+		case "WinMM":
+			b, ok = a.learnWinMM(5 * time.Second)
+		case "DirectInput":
+			b, ok = a.learnDirectInput(5 * time.Second)
+		default:
+			b, ok = a.learnAuto(5 * time.Second)
 		}
-		base := map[int]baseline{}
-		for _, d := range devs {
-			if st, ok := readJoy(d.ID); ok {
-				base[d.ID] = baseline{st.Buttons, st.POV}
-			}
+		if ok {
+			a.queueLearn(learnResult{Key: key, Binding: b, OK: true})
+			return
 		}
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			for _, d := range devs {
-				st, ok := readJoy(d.ID)
-				if !ok {
-					continue
-				}
-				b := base[d.ID]
-				pressed := st.Buttons &^ b.buttons
-				if pressed != 0 {
-					for i := 0; i < 32; i++ {
-						if pressed&(1<<uint(i)) != 0 {
-							a.queueLearn(learnResult{Key: key, Binding: binding{Kind: "button", DeviceID: d.ID, Button: i}, OK: true})
-							return
-						}
-					}
-				}
-				if st.POV != JOY_POVCENTERED && st.POV != b.pov {
-					a.queueLearn(learnResult{Key: key, Binding: binding{Kind: "pov", DeviceID: d.ID, POV: int(st.POV)}, OK: true})
-					return
-				}
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		a.queueLearn(learnResult{Key: key, Message: "Nothing detected. Try Learn again and press/move the control after clicking Learn."})
+		a.queueLearn(learnResult{Key: key, Message: "Nothing detected. Try Learn again and press/move the control after clicking Learn. If the device is visible only through one API, select DirectInput or WinMM explicitly."})
 	}()
 }
+
+func (a *appState) learnWinMM(timeout time.Duration) (binding, bool) {
+	devs := enumerateDevices()
+	type baseline struct {
+		buttons uint32
+		pov     uint32
+	}
+	base := map[int]baseline{}
+	for _, d := range devs {
+		if st, ok := readJoy(d.ID); ok {
+			base[d.ID] = baseline{st.Buttons, st.POV}
+		}
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		for _, d := range devs {
+			st, ok := readJoy(d.ID)
+			if !ok {
+				continue
+			}
+			bl := base[d.ID]
+			pressed := st.Buttons &^ bl.buttons
+			if pressed != 0 {
+				for i := 0; i < 32; i++ {
+					if pressed&(1<<uint(i)) != 0 {
+						return binding{Kind: "button", Backend: "WinMM", DeviceID: d.ID, DeviceName: d.Name, Button: i}, true
+					}
+				}
+			}
+			if st.POV != JOY_POVCENTERED && st.POV != bl.pov {
+				return binding{Kind: "pov", Backend: "WinMM", DeviceID: d.ID, DeviceName: d.Name, POVIndex: 0, POV: int(st.POV)}, true
+			}
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	return binding{}, false
+}
+
+func detectDirectInputLearn(base map[string]diJoyState, snaps []diFullSnapshot) (binding, bool) {
+	for _, snap := range snaps {
+		bl, exists := base[snap.GUID]
+		if !exists {
+			continue
+		}
+		for i := 0; i < len(snap.State.Buttons); i++ {
+			now := snap.State.Buttons[i]&0x80 != 0
+			was := bl.Buttons[i]&0x80 != 0
+			if now && !was {
+				return binding{Kind: "button", Backend: "DirectInput", DeviceID: -1, DIGUID: snap.GUID, DeviceName: snap.Name, Button: i}, true
+			}
+		}
+		for i := 0; i < len(snap.State.POV); i++ {
+			now := snap.State.POV[i]
+			was := bl.POV[i]
+			if now != 0xFFFFFFFF && now != was {
+				return binding{Kind: "pov", Backend: "DirectInput", DeviceID: -1, DIGUID: snap.GUID, DeviceName: snap.Name, POVIndex: i, POV: int(now)}, true
+			}
+		}
+	}
+	return binding{}, false
+}
+
+func (a *appState) learnDirectInput(timeout time.Duration) (binding, bool) {
+	base := make(map[string]diJoyState)
+	for _, snap := range a.di.FullSnapshots() {
+		base[snap.GUID] = snap.State
+	}
+	if len(base) == 0 {
+		return binding{}, false
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if b, ok := detectDirectInputLearn(base, a.di.FullSnapshots()); ok {
+			return b, true
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return binding{}, false
+}
+
+func (a *appState) learnAuto(timeout time.Duration) (binding, bool) {
+	// Auto watches both APIs at the same time. DirectInput is checked first on every
+	// cycle so a device visible through both APIs is saved as a DirectInput binding.
+	diBase := make(map[string]diJoyState)
+	for _, snap := range a.di.FullSnapshots() {
+		diBase[snap.GUID] = snap.State
+	}
+	devs := enumerateDevices()
+	type winBase struct {
+		buttons uint32
+		pov     uint32
+	}
+	wmBase := map[int]winBase{}
+	for _, d := range devs {
+		if st, ok := readJoy(d.ID); ok {
+			wmBase[d.ID] = winBase{st.Buttons, st.POV}
+		}
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if len(diBase) > 0 {
+			if b, ok := detectDirectInputLearn(diBase, a.di.FullSnapshots()); ok {
+				return b, true
+			}
+		}
+		for _, d := range devs {
+			st, ok := readJoy(d.ID)
+			if !ok {
+				continue
+			}
+			bl := wmBase[d.ID]
+			pressed := st.Buttons &^ bl.buttons
+			if pressed != 0 {
+				for i := 0; i < 32; i++ {
+					if pressed&(1<<uint(i)) != 0 {
+						return binding{Kind: "button", Backend: "WinMM", DeviceID: d.ID, DeviceName: d.Name, Button: i}, true
+					}
+				}
+			}
+			if st.POV != JOY_POVCENTERED && st.POV != bl.pov {
+				return binding{Kind: "pov", Backend: "WinMM", DeviceID: d.ID, DeviceName: d.Name, POVIndex: 0, POV: int(st.POV)}, true
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return binding{}, false
+}
+
 func (a *appState) queueLearn(r learnResult) {
 	a.pendingMu.Lock()
 	a.learnQueue = append(a.learnQueue, r)
 	a.pendingMu.Unlock()
 	procPostMessageW.Call(a.hwnd, WM_APP_LEARN, 0, 0)
 }
+func (a *appState) clearBinding(key, label string) {
+	a.cfgMu.Lock()
+	if a.cfg.Bindings != nil {
+		delete(a.cfg.Bindings, key)
+	}
+	a.cfgMu.Unlock()
+	saveConfig()
+	a.updateBindingLabels()
+	a.postStatus(label + " cleared.")
+}
+
 func (a *appState) drainLearn() {
 	a.pendingMu.Lock()
 	q := append([]learnResult(nil), a.learnQueue...)
@@ -4695,11 +5459,24 @@ func (a *appState) updateBindingLabels() {
 	}
 }
 func bindingDisplay(b binding) string {
+	backend := normalizeBindingBackend(b.Backend)
+	if backend == "DirectInput" || b.DIGUID != "" {
+		name := strings.TrimSpace(b.DeviceName)
+		if name == "" {
+			name = "DirectInput device"
+		}
+		if strings.EqualFold(b.Kind, "button") {
+			return fmt.Sprintf("%s / Button %d [DI]", name, b.Button+1)
+		}
+		if strings.EqualFold(b.Kind, "pov") {
+			return fmt.Sprintf("%s / POV %d %s [DI]", name, b.POVIndex+1, povName(b.POV))
+		}
+	}
 	if strings.EqualFold(b.Kind, "button") {
-		return fmt.Sprintf("Joystick %d / Button %d", b.DeviceID, b.Button+1)
+		return fmt.Sprintf("Joystick %d / Button %d [WinMM]", b.DeviceID, b.Button+1)
 	}
 	if strings.EqualFold(b.Kind, "pov") {
-		return fmt.Sprintf("Joystick %d / POV %s", b.DeviceID, povName(b.POV))
+		return fmt.Sprintf("Joystick %d / POV %s [WinMM]", b.DeviceID, povName(b.POV))
 	}
 	return "Not assigned"
 }

@@ -1,55 +1,36 @@
-GALACTIC RACER HOSAS/HOTAS BRIDGE v1.92 BETA — QUICK START
+GALACTIC RACER HOSAS/HOTAS BRIDGE v1.96 — QUICK START
 by JaffaQuake and Mars
 
-INSTALLATION
-1. Extract the ZIP.
-2. Double-click Install.cmd.
-3. Launch the installed app.
+1. INSTALL
+- Extract the ZIP and run Install.cmd.
 
-1. CHOOSE INPUT API
-- Existing users upgrading from an older build will remain on WinMM compatibility by default.
-- Auto: uses DirectInput first and falls back to the matched WinMM device when possible.
-- DirectInput: exposes X/Y/Z, Rx/Ry/Rz, Slider 1 and Slider 2.
-- WinMM: preserves the older six-axis path that has been stable with the original VKB setup.
+2. CHOOSE INPUT API
+- Auto: DirectInput first, with WinMM compatibility available.
+- DirectInput: X/Y/Z, Rx/Ry/Rz, Slider 1/2 plus DirectInput button/POV learning.
+- WinMM: original compatibility path and original button/POV learning.
 
-If a throttle axis is missing in WinMM, try DirectInput and Refresh Devices.
+3. CHOOSE CONTROL MODE
+Podracer Style
+- Choose left/right controls and axes, or use Detect Left/Right.
+- Optional Hybrid Preserve Thrust.
 
-2. CHOOSE CONTROL MODE
-HOSAS / Podracer Style
-- Choose Left Stick and Right Stick.
-- Click Detect Left and push the left control forward.
-- Click Detect Right and push the right control forward.
-- Optional: enable Hybrid Preserve Thrust.
+Traditional HOTAS
+- Choose throttle + axis and flight stick + X/Y axes.
+- Choose Brake Behavior: Off, Digital at Idle, or Analog Brake Zone.
+- With DirectInput/Auto selected, Rx/Ry/Rz/Slider diagnostics appear in LIVE INPUT MONITOR.
 
-HOTAS / Traditional Steering
-- Choose a throttle and its axis. Throttle maps to Xbox RT / forward only.
-- Choose a flight stick and X/Y axes. The stick maps directly to Xbox Left Stick X/Y.
-- DirectInput mode adds rotation and slider axes for broader throttle support.
+4. LEARN / CLEAR BUTTONS
+- Click Learn, then press the controller button/hat/switch to assign.
+- Click Clear to remove an assignment immediately.
+- Left Trigger and Right Trigger Learn rows are OPTIONAL manual overrides; analog controls already
+  generate normal acceleration/braking.
 
-3. OPTIONAL HIDHIDE / DOUBLE-INPUT PROTECTION
-If the physical flight controller is also controlling the game directly:
-- Install HidHide from the official Nefarius project.
-- Click HidHide Setup in this app.
-- The mapper will try to allowlist itself and open HidHide Configuration Client.
-- In HidHide, select the physical flight devices you want hidden from games and enable hiding.
-- Reconnect the hidden devices so the change takes effect.
+5. OPTIONAL HIDHIDE
+- Use HidHide Setup if the game also sees raw physical controllers and causes double input.
 
-HidHide is optional. v1.92 Beta does not automatically hide any device.
+6. OUTPUT
+- Click Initiate Xbox Controller to create the virtual Xbox pad.
+- Click Deactivate Xbox Controller when finished.
 
-4. BUTTONS / ON-FOOT / PEDALS
-- Learn Xbox buttons and D-pad directions in the mapping section.
-- On-Foot controls can use learned Buttons -> WASD or the experimental DirectInput thumbstick path.
-- Pedals can provide Fine Steering, Move Camera, or left/right keyboard keys.
-
-5. START MAPPING
-- Click Start Mapping to create the virtual Xbox controller.
-- Click Stop Mapping when finished; the virtual Xbox controller is removed.
-- Settings are saved automatically.
-
-WINDOW SIZE
-- The window is resizable and maximizable.
-- Controls remain their original size and position.
-- When the window is smaller than the content area, use the scroll bars to reach hidden sections.
-
-CONFIG FILE
+CONFIG
 %LOCALAPPDATA%\GalacticRacerHOSAS\hosas_config.json

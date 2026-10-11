@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-Write-Host "Galactic Racer HOSAS / HOTAS Bridge v1.92 Beta installer" -ForegroundColor Cyan
+Write-Host "Galactic Racer HOSAS / HOTAS Bridge v1.96 installer" -ForegroundColor Cyan
 
 function Get-LocalAppDataPath {
     $p = [Environment]::GetFolderPath('LocalApplicationData')
@@ -108,7 +108,7 @@ if (Test-Path -LiteralPath $sourceIcon) {
     Copy-Item -LiteralPath $sourceIcon -Destination (Join-Path $appDir 'GalacticRacerHOSAS.ico') -Force
 }
 
-foreach ($doc in @('LICENSE.txt','THIRD_PARTY_NOTICES.txt','QUICKSTART.txt','README.txt','INSTALLER_AUDIT_v1.92-beta.txt','RELEASE_NOTES_v1.92-beta.txt','BUILD_VALIDATION_v1.92-beta.txt')) {
+foreach ($doc in @('LICENSE.txt','THIRD_PARTY_NOTICES.txt','QUICKSTART.txt','README.txt','INSTALLER_AUDIT_v1.96.txt','RELEASE_NOTES_v1.96.txt','BUILD_VALIDATION_v1.96.txt')) {
     $docPath = Join-Path $sourceDir $doc
     if (Test-Path -LiteralPath $docPath) {
         Copy-Item -LiteralPath $docPath -Destination (Join-Path $appDir $doc) -Force
@@ -212,6 +212,6 @@ Write-Host ''
 Write-Host 'Installed successfully. Existing controller settings were preserved.' -ForegroundColor Green
 Write-Host "App folder: $appDir"
 if (-not $driverReady) {
-    Write-Host 'NOTE: ViGEmBus was not confirmed. Restart Windows first; if Start Mapping still fails, install/repair ViGEmBus 1.22.0 manually.' -ForegroundColor Yellow
+    Write-Host 'NOTE: ViGEmBus was not confirmed. Restart Windows first; if Initiate Xbox Controller still fails, install/repair ViGEmBus 1.22.0 manually.' -ForegroundColor Yellow
 }
 Start-Process -FilePath $installedExe -WorkingDirectory $appDir
