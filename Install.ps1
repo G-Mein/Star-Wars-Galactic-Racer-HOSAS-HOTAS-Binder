@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-Write-Host "Galactic Racer HOSAS / HOTAS Bridge v1.96 installer" -ForegroundColor Cyan
+Write-Host "Galactic Racer HOSAS / HOTAS Bridge v1.98.2 installer" -ForegroundColor Cyan
 
 function Get-LocalAppDataPath {
     $p = [Environment]::GetFolderPath('LocalApplicationData')
@@ -87,6 +87,16 @@ $sourceExe = Join-Path $sourceDir 'GalacticRacerHOSAS.exe'
 if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) {
     throw "GalacticRacerHOSAS.exe was not found beside Install.ps1. Extract the complete ZIP before installing."
 }
+$sourceHelper = Join-Path $sourceDir 'GalacticRacerWinMMHelper.exe'
+if (-not (Test-Path -LiteralPath $sourceHelper -PathType Leaf)) {
+    throw "GalacticRacerWinMMHelper.exe was not found beside Install.ps1. Extract the complete ZIP before installing."
+}
+if (-not (Test-X64PEFile $sourceExe)) {
+    throw 'GalacticRacerHOSAS.exe is missing, corrupt, or not an x64 Windows executable.'
+}
+if (-not (Test-X64PEFile $sourceHelper)) {
+    throw 'GalacticRacerWinMMHelper.exe is missing, corrupt, or not an x64 Windows executable.'
+}
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'This release is a 64-bit Windows application and requires 64-bit Windows.'
 }
@@ -99,16 +109,17 @@ Write-Host "Install folder: $appDir"
 Write-Host 'Checking packaged application...' -ForegroundColor DarkCyan
 
 # Close the previous build before replacing files. The configuration file is deliberately preserved.
-Get-Process -Name 'GalacticRacerHOSAS' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name 'GalacticRacerHOSAS','GalacticRacerWinMMHelper' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 250
 Copy-Item -LiteralPath $sourceExe -Destination (Join-Path $appDir 'GalacticRacerHOSAS.exe') -Force
+Copy-Item -LiteralPath $sourceHelper -Destination (Join-Path $appDir 'GalacticRacerWinMMHelper.exe') -Force
 
 $sourceIcon = Join-Path $sourceDir 'GalacticRacerHOSAS.ico'
 if (Test-Path -LiteralPath $sourceIcon) {
     Copy-Item -LiteralPath $sourceIcon -Destination (Join-Path $appDir 'GalacticRacerHOSAS.ico') -Force
 }
 
-foreach ($doc in @('LICENSE.txt','THIRD_PARTY_NOTICES.txt','QUICKSTART.txt','README.txt','INSTALLER_AUDIT_v1.96.txt','RELEASE_NOTES_v1.96.txt','BUILD_VALIDATION_v1.96.txt')) {
+foreach ($doc in @('LICENSE.txt','THIRD_PARTY_NOTICES.txt','QUICKSTART.txt','README.txt','INSTALLER_AUDIT_v1.98.2.txt','RELEASE_NOTES_v1.98.2.txt','BUILD_VALIDATION_v1.98.2.txt','WINMM_COMPATIBILITY.txt','SHA256_v1.98.2.txt')) {
     $docPath = Join-Path $sourceDir $doc
     if (Test-Path -LiteralPath $docPath) {
         Copy-Item -LiteralPath $docPath -Destination (Join-Path $appDir $doc) -Force

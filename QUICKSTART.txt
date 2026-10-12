@@ -1,36 +1,22 @@
-GALACTIC RACER HOSAS/HOTAS BRIDGE v1.96 — QUICK START
+GALACTIC RACER HOSAS / HOTAS BRIDGE v1.98.2 — QUICK START
 by JaffaQuake and Mars
 
-1. INSTALL
-- Extract the ZIP and run Install.cmd.
+1. Extract ZIP and double-click Install.cmd (Windows x64).
+2. Input API: Auto (DirectInput first), DirectInput, or WinMM (isolated helper).
+3. Select Podracer Style HOSAS or Traditional HOTAS; assign sticks and axes.
+4. Twist Axis: choose independent Left and Right Twist devices/axes.
+   Type: Centered (-100%..+100%, default) or Lever (0%..100%).
+   Modes: Off, Fine Steering, Move Camera, Pitch, Keyboard Keys.
+   Set Invert and Deadzone. Relevant mode settings appear beneath each twist.
+5. Rudder Pedals remain independent and retain their established modes.
+6. Standard Xbox mappings: Learn/Clear button and hat assignments in two columns.
+7. Galactic Racer Specific Mappings: Pitch Up/Down and Look Left/Right/Back.
+   The three Look commands continue to emit native keyboard output in-game,
+   despite the equivalent Xbox directional labels in the UI.
+8. Click Save settings, then Initiate Xbox Controller.
+9. HidHide Setup may help if a game sees physical and virtual devices twice.
 
-2. CHOOSE INPUT API
-- Auto: DirectInput first, with WinMM compatibility available.
-- DirectInput: X/Y/Z, Rx/Ry/Rz, Slider 1/2 plus DirectInput button/POV learning.
-- WinMM: original compatibility path and original button/POV learning.
+NOTE: Lever axes are one-way and cannot produce negative axis values. The
+negative keyboard threshold/key is only usable with a centered twist input.
 
-3. CHOOSE CONTROL MODE
-Podracer Style
-- Choose left/right controls and axes, or use Detect Left/Right.
-- Optional Hybrid Preserve Thrust.
-
-Traditional HOTAS
-- Choose throttle + axis and flight stick + X/Y axes.
-- Choose Brake Behavior: Off, Digital at Idle, or Analog Brake Zone.
-- With DirectInput/Auto selected, Rx/Ry/Rz/Slider diagnostics appear in LIVE INPUT MONITOR.
-
-4. LEARN / CLEAR BUTTONS
-- Click Learn, then press the controller button/hat/switch to assign.
-- Click Clear to remove an assignment immediately.
-- Left Trigger and Right Trigger Learn rows are OPTIONAL manual overrides; analog controls already
-  generate normal acceleration/braking.
-
-5. OPTIONAL HIDHIDE
-- Use HidHide Setup if the game also sees raw physical controllers and causes double input.
-
-6. OUTPUT
-- Click Initiate Xbox Controller to create the virtual Xbox pad.
-- Click Deactivate Xbox Controller when finished.
-
-CONFIG
-%LOCALAPPDATA%\GalacticRacerHOSAS\hosas_config.json
+Settings: %LOCALAPPDATA%\GalacticRacerHOSAS\hosas_config.json

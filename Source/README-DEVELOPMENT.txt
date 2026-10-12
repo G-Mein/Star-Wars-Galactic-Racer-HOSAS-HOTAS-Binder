@@ -1,37 +1,27 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE - LOCAL DEVELOPMENT (v1.96)
+GALACTIC RACER HOSAS / HOTAS BRIDGE - LOCAL DEVELOPMENT (v1.98.2)
+================================================================
 
-The application is written in Go and uses native Windows APIs directly.
+The release includes matching Go source for both executables.
 
-QUICK BUILD
-1. Install Go for Windows.
-2. Edit main.go and save it.
-3. Close any running GalacticRacerHOSAS.exe.
-4. Double-click Build-Local.cmd.
-5. Run the newly built GalacticRacerHOSAS.exe in this Source folder.
+MAIN APP
+--------
+Source/main.go
 
-Build-Local.cmd searches PATH and common Go install locations, builds a Windows GUI executable,
-and copies ViGEmClient.dll beside the dev EXE when it can find the installed/release copy.
+WINMM HELPER
+------------
+Source/WinMMHelper/main.go
 
-v1.96 INPUT ARCHITECTURE
-Physical flight axes can use:
-  Auto -> DirectInput first, with WinMM compatibility available.
-  DirectInput -> broader X/Y/Z/Rx/Ry/Rz/Slider 1/Slider 2 path.
-  WinMM -> legacy six-axis compatibility path.
+Build-Local.cmd builds both executables on Windows. The helper exists only to isolate legacy WinMM
+device-capability enumeration from the main process. Users do not launch it directly.
 
-Learned buttons/hats are backend-aware:
-  DirectInput -> device instance GUID + up to 128 buttons + four POV hats.
-  WinMM -> original joystick ID + 32-button/POV path.
-  Auto -> watches both and prefers DirectInput if the same press is visible to both.
-Existing bindings without a backend field are treated as WinMM so old configs keep working.
+v1.98.2 INPUT / OUTPUT NOTES
+--------------------------
+- Auto and DirectInput use the DirectInput device list during normal startup.
+- WinMM capability enumeration runs through GalacticRacerWinMMHelper.exe when required.
+- DirectInput exposes X/Y/Z, Rx/Ry/Rz, Slider 1/2 plus buttons/POVs.
+- Pedal mode Pitch maps the normalized pedal axis to virtual Xbox Left Stick Y.
+- Learned PITCHUP / PITCHDOWN bindings generate full-deflection Left Stick Y outputs.
+- Digital pitch bindings override analog Left Stick Y while held; both together cancel to neutral.
+- Pedal Keyboard Keys mode supports modifier keys including Shift, left/right Control and Alt.
 
-HOTAS BRAKE THRESHOLD
-HOTAS mode maps the throttle to RT above the configured threshold. At/below the threshold, RT is
-released and LT/brake is held. Default is 5%; config range is 0-50%.
-
-HidHide integration is optional. The app can register this executable on the allowlist and open
-HidHide Configuration Client, but it deliberately does not auto-hide devices.
-
-UI
-The Win32 layout remains fixed-size inside a resizable/scrollable main window. v1.96 renders hover
-help and selector option lists as children of the main window so they remain visible in window-only
-screen capture instead of appearing as separate popup windows.
+The Win32 UI remains a fixed-size content canvas inside a resizable/scrollable main window.

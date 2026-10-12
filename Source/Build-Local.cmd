@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-echo Building Galactic Racer HOSAS / HOTAS Bridge v1.96...
+echo Building Galactic Racer HOSAS / HOTAS Bridge v1.98.2...
 
 set "GOEXE="
 for /f "delims=" %%G in ('where go.exe 2^>nul') do if not defined GOEXE set "GOEXE=%%G"
@@ -19,10 +19,20 @@ if not defined GOEXE (
 )
 
 echo Using Go: %GOEXE%
+echo Building WinMM compatibility helper...
+"%GOEXE%" build -o GalacticRacerWinMMHelper.exe ./WinMMHelper
+if errorlevel 1 (
+  echo.
+  echo WinMM helper build failed. Fix the Go errors above and try again.
+  pause
+  exit /b 1
+)
+
+echo Building main application...
 "%GOEXE%" build -ldflags="-H windowsgui" -o GalacticRacerHOSAS.exe .
 if errorlevel 1 (
   echo.
-  echo Build failed. Fix the Go errors above and try again.
+  echo Main application build failed. Fix the Go errors above and try again.
   pause
   exit /b 1
 )
@@ -39,7 +49,7 @@ if not exist "ViGEmClient.dll" (
   ) else (
     echo.
     echo NOTE: No local ViGEmClient.dll was found.
-    echo The v1.96 runtime will also check the normal installed app folder when Initiate Xbox Controller is pressed.
+    echo The v1.98.2 runtime will also check the normal installed app folder when Initiate Xbox Controller is pressed.
     echo If neither location has the DLL, virtual Xbox output will not start.
   )
 )
@@ -47,4 +57,5 @@ if not exist "ViGEmClient.dll" (
 echo.
 echo Build complete:
 echo   %CD%\GalacticRacerHOSAS.exe
+echo   %CD%\GalacticRacerWinMMHelper.exe
 pause

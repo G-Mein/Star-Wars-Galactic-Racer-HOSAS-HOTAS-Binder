@@ -1,0 +1,21 @@
+Galactic Racer HOSAS / HOTAS Bridge v1.98.2 — Build Validation
+=============================================================
+- Built main program as Windows x64 GUI PE with Go 1.23.2, CGO_ENABLED=0.
+- Built unchanged isolated WinMM helper as Windows x64 PE.
+- gofmt and GOOS=windows GOARCH=amd64 go vet -unsafeptr=false passed.
+- Confirmed mapping label width increased from 148px to 230px, height from
+  22px to 44px, rows from 37px to 54px; long button labels wrap on buttons.
+- Verified two-column layout: 50px gap, maximum horizontal extent 1106px
+  within 1130px logical content width.
+- Verified bottom-most mapping ends at y=1643, within 1740px content height.
+- Dot movement derives the neutral location from its registered base rectangle;
+  the same rectangle receives the twist-axis 210px layout offset.
+- WinMM helper source unchanged; mapping output and settings behavior unchanged.
+- No native Windows UI / controller hardware runtime test was possible here.
+- v1.98.2: twist section heading y=178; left row/detail y=207/244;
+  right row/detail y=285/322. Last conditional twist detail ends at 347;
+  unchanged Rudder Pedals header starts at 364, leaving 17px separation.
+- HOSAS/HOTAS controls remain at their v1.98.1 coordinates.
+- Twist axis explanatory heading text removed; existing axis-type tooltips remain.
+- Changes reviewed against v1.98.1 source; only title and twist UI placement
+  changed. No controller/device behavior was modified in this release.

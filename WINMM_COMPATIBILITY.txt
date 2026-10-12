@@ -1,0 +1,13 @@
+WINMM COMPATIBILITY — v1.98.2
+===========================
+
+Galactic Racer HOSAS / HOTAS Bridge uses DirectInput as the preferred modern Windows joystick path.
+WinMM remains available for compatibility with older configurations and hardware.
+
+Some Windows controller/driver combinations can fail inside the legacy joyGetDevCapsW API. v1.98.2
+therefore isolates WinMM capability enumeration in GalacticRacerWinMMHelper.exe. The main app starts
+this helper automatically only when WinMM capability discovery is needed.
+
+Users do not need to open the helper manually.
+
+If your existing configuration works through Auto or DirectInput, no change is required.

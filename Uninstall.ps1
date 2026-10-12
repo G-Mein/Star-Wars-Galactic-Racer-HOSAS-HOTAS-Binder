@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'SilentlyContinue'
-Get-Process -Name 'GalacticRacerHOSAS' -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name 'GalacticRacerHOSAS','GalacticRacerWinMMHelper' -ErrorAction SilentlyContinue | Stop-Process -Force
 
 $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
 if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
