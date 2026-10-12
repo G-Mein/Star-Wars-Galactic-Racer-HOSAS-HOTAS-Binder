@@ -1,7 +1,0 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE — v1.96 RELIABILITY NOTES
-
-- Installer remains based on the v1.95 reliability path.
-- Existing WinMM and DirectInput bindings are preserved; Clear only removes the binding the user explicitly clears.
-- HidHide remains optional and is not enabled automatically.
-- ViGEmBus/ViGEmClient remain the Xbox-output dependency for the v1.x branch.
-- Existing settings file remains compatible: %LOCALAPPDATA%\GalacticRacerHOSAS\hosas_config.json
