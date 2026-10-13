@@ -1,0 +1,19 @@
+Galactic Racer HOSAS / HOTAS Bridge v2.0 — Build Validation
+===========================================================
+- Built natively on Windows with Go: GUI (-H=windowsgui) and WinMM helper with
+  GOOS=windows GOARCH=amd64 CGO_ENABLED=0 and -trimpath.
+- gofmt -l (no output), go vet ./... and go test ./... passed (exit code 0).
+- Tests cover axis math incl. upstream v1.98.3 Output Negative matrix, curve
+  plots, overlay, custom scrollbar geometry/clipping, status bar bounds,
+  custom frame hit-testing and sidebar navigation fit.
+- Live UI check on Windows: custom dark title bar, sidebar pages, dark
+  scrollbar, content clipped below fixed profile bar and above the status bar,
+  status bar shows original authors, "Modified by G-Mein" and v2.0.
+- Output Negative checkboxes are visible only on the Twist page when their
+  Axis Type is Lever (fixed visible owner-draw handle after logic review).
+- Review: logic / test-edge-case / simplicity ensemble plus two targeted
+  rechecks; all confirmed findings fixed, final recheck PASS.
+- Driving logic, button mapping, WinMM helper behavior and installer flow are
+  unchanged from the pre-release builds.
+- Full controller runtime depends on the installed ViGEmBus driver and the
+  user's devices; verify with the in-app live monitor after installation.

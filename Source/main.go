@@ -2,6 +2,7 @@
 
 // Galactic Racer HOSAS / HOTAS Bridge
 // Copyright (C) 2026 JaffaQuake
+// Modifications Copyright (C) 2026 G-Mein (https://github.com/G-Mein)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 package main
@@ -33,21 +34,36 @@ import (
 var embeddedAppIcon []byte
 
 const (
-	appTitle = "Galactic Racer HOSAS / HOTAS Bridge v1.98.3 — by JaffaQuake and Mars"
+	appVersion = "v2.0"
+	appTitle   = "Galactic Racer HOSAS / HOTAS Bridge " + appVersion + " — by JaffaQuake and Mars"
+	// Status bar notice; must stay consistent with the README credits (GPL-3.0 section 5a).
+	statusBarCopyright = "© 2026 JaffaQuake and Mars  ·  Modified by G-Mein (github.com/G-Mein)  ·  GPL-3.0-or-later"
+	statusBarVersion   = appVersion
 
-	WS_OVERLAPPED  = 0x00000000
-	WS_CAPTION     = 0x00C00000
-	WS_SYSMENU     = 0x00080000
-	WS_THICKFRAME  = 0x00040000
-	WS_MINIMIZEBOX = 0x00020000
-	WS_MAXIMIZEBOX = 0x00010000
-	WS_CHILD       = 0x40000000
-	WS_VISIBLE     = 0x10000000
-	WS_TABSTOP     = 0x00010000
-	WS_BORDER      = 0x00800000
-	WS_VSCROLL     = 0x00200000
-	WS_HSCROLL     = 0x00100000
-	WS_POPUP       = 0x80000000
+	WS_OVERLAPPED   = 0x00000000
+	WS_CAPTION      = 0x00C00000
+	WS_SYSMENU      = 0x00080000
+	WS_THICKFRAME   = 0x00040000
+	WS_MINIMIZEBOX  = 0x00020000
+	WS_MAXIMIZEBOX  = 0x00010000
+	WS_CHILD        = 0x40000000
+	WS_VISIBLE      = 0x10000000
+	WS_TABSTOP      = 0x00010000
+	WS_BORDER       = 0x00800000
+	WS_VSCROLL      = 0x00200000
+	WS_HSCROLL      = 0x00100000
+	WS_POPUP        = 0x80000000
+	WS_CLIPCHILDREN = 0x02000000
+	WS_CLIPSIBLINGS = 0x04000000
+	HWND_TOP        = 0
+	SBS_VERT        = 0x0001
+
+	SC_SIZE     = 0xF000
+	SC_MOVE     = 0xF010
+	SC_MINIMIZE = 0xF020
+	SC_MAXIMIZE = 0xF030
+	SC_CLOSE    = 0xF060
+	SC_RESTORE  = 0xF120
 
 	WS_EX_TOPMOST     = 0x00000008
 	WS_EX_TRANSPARENT = 0x00000020
@@ -64,30 +80,83 @@ const (
 	BS_PUSHBUTTON    = 0x00000000
 	BS_MULTILINE     = 0x00002000
 	BS_AUTOCHECKBOX  = 0x00000003
+	BS_OWNERDRAW     = 0x0000000B
 	CBS_DROPDOWNLIST = 0x00000003
 	LBS_NOTIFY       = 0x00000001
 	ES_NUMBER        = 0x00002000
 	SS_LEFT          = 0x00000000
+	ODT_BUTTON       = 4
+	ODS_SELECTED     = 0x0001
+	ODS_DISABLED     = 0x0004
+	ODS_FOCUS        = 0x0010
+	DT_LEFT          = 0x0000
+	DT_CENTER        = 0x0001
+	DT_RIGHT         = 0x0002
+	DT_VCENTER       = 0x0004
+	DT_WORDBREAK     = 0x0010
+	DT_SINGLELINE    = 0x0020
+	DT_NOPREFIX      = 0x0800
+	DT_END_ELLIPSIS  = 0x8000
+	TRANSPARENT      = 1
+	PS_SOLID         = 0
+	PS_DASH          = 1
+
+	TBM_GETPOS      = 0x0400
+	TBM_SETPOS      = 0x0405
+	TBM_SETRANGE    = 0x0406
+	TBM_SETRANGEMIN = 0x0407
+	TBM_SETRANGEMAX = 0x0408
+	TB_ENDTRACK     = 8
 
 	CW_USEDEFAULT     = ^uintptr(0x7fffffff)
 	SW_HIDE           = 0
+	SW_MAXIMIZE       = 3
 	SW_SHOWNOACTIVATE = 4
 	SW_SHOW           = 5
+	SW_MINIMIZE       = 6
+	SW_RESTORE        = 9
 
-	WM_CREATE       = 0x0001
-	WM_DESTROY      = 0x0002
-	WM_SIZE         = 0x0005
-	WM_CLOSE        = 0x0010
-	WM_LBUTTONDOWN  = 0x0201
-	WM_MOUSEWHEEL   = 0x020A
-	WM_PARENTNOTIFY = 0x0210
-	WM_COMMAND      = 0x0111
-	WM_HSCROLL      = 0x0114
-	WM_VSCROLL      = 0x0115
-	WM_TIMER        = 0x0113
-	WM_SETFONT      = 0x0030
-	WM_SETICON      = 0x0080
-	WM_APP          = 0x8000
+	SIZE_RESTORED  = 0
+	SIZE_MINIMIZED = 1
+	SIZE_MAXIMIZED = 2
+
+	WM_CREATE          = 0x0001
+	WM_DESTROY         = 0x0002
+	WM_SIZE            = 0x0005
+	WM_CLOSE           = 0x0010
+	WM_ERASEBKGND      = 0x0014
+	WM_LBUTTONDOWN     = 0x0201
+	WM_MOUSEWHEEL      = 0x020A
+	WM_PARENTNOTIFY    = 0x0210
+	WM_DRAWITEM        = 0x002B
+	WM_PAINT           = 0x000F
+	WM_CTLCOLORMSGBOX  = 0x0132
+	WM_CTLCOLOREDIT    = 0x0133
+	WM_CTLCOLORLISTBOX = 0x0134
+	WM_CTLCOLORBTN     = 0x0135
+	WM_CTLCOLORSTATIC  = 0x0138
+	WM_COMMAND         = 0x0111
+	WM_HSCROLL         = 0x0114
+	WM_VSCROLL         = 0x0115
+	WM_TIMER           = 0x0113
+	WM_SETFONT         = 0x0030
+	WM_SETICON         = 0x0080
+	WM_NCCALCSIZE      = 0x0083
+	WM_NCHITTEST       = 0x0084
+	WM_SYSCOMMAND      = 0x0112
+	WM_APP             = 0x8000
+
+	HTCLIENT      = 1
+	HTCAPTION     = 2
+	HTLEFT        = 10
+	HTRIGHT       = 11
+	HTTOP         = 12
+	HTTOPLEFT     = 13
+	HTTOPRIGHT    = 14
+	HTBOTTOM      = 15
+	HTBOTTOMLEFT  = 16
+	HTBOTTOMRIGHT = 17
+	HTNOWHERE     = 0
 
 	WM_APP_STATUS = WM_APP + 1
 	WM_APP_DETECT = WM_APP + 2
@@ -99,14 +168,19 @@ const (
 	BM_SETSTATE = 0x00F3
 	BST_CHECKED = 1
 
-	SWP_NOSIZE     = 0x0001
-	SWP_NOZORDER   = 0x0004
-	SWP_NOACTIVATE = 0x0010
-	SWP_SHOWWINDOW = 0x0040
-	SWP_HIDEWINDOW = 0x0080
+	SWP_NOSIZE       = 0x0001
+	SWP_NOMOVE       = 0x0002
+	SWP_NOZORDER     = 0x0004
+	SWP_NOACTIVATE   = 0x0010
+	SWP_FRAMECHANGED = 0x0020
+	SWP_SHOWWINDOW   = 0x0040
+	SWP_HIDEWINDOW   = 0x0080
+	SWP_NOCOPYBITS   = 0x0100
 
 	RDW_INVALIDATE  = 0x0001
 	RDW_ERASE       = 0x0004
+	RDW_NOERASE     = 0x0020
+	RDW_NOCHILDREN  = 0x0040
 	RDW_ALLCHILDREN = 0x0080
 	RDW_UPDATENOW   = 0x0100
 
@@ -125,23 +199,12 @@ const (
 	LBN_DBLCLK    = 2
 	LBN_KILLFOCUS = 5
 	EN_CHANGE     = 0x0300
+	EN_KILLFOCUS  = 0x0200
 
 	DEFAULT_GUI_FONT = 17
-	COLOR_BTNFACE    = 15
 	IDC_ARROW        = 32512
 	ICON_SMALL       = 0
 	ICON_BIG         = 1
-
-	SB_HORZ          = 0
-	SB_VERT          = 1
-	SB_LINEUP        = 0
-	SB_LINEDOWN      = 1
-	SB_PAGEUP        = 2
-	SB_PAGEDOWN      = 3
-	SB_THUMBPOSITION = 4
-	SB_THUMBTRACK    = 5
-	SB_TOP           = 6
-	SB_BOTTOM        = 7
 
 	JOY_RETURNX       = 0x00000001
 	JOY_RETURNY       = 0x00000002
@@ -186,6 +249,33 @@ const (
 )
 
 const (
+	customTitleBarHeight = 44
+	captionButtonWidth   = 46
+	captionButtonHeight  = 32
+	captionButtonInset   = 8
+	windowResizeBorder   = 8
+	scrollBarWidth       = 16
+	statusBarHeight      = 24
+
+	sidebarWidth         = 200
+	contentOffset        = 210
+	layoutShift          = 300
+	sectionTwistPanelY   = 250
+	sectionPedalPanelY   = 450
+	sectionFootPanelY    = 560
+	sectionDrivingPanelY = 250
+	sectionMonitorPanelY = 840
+	sectionBindingPanelY = 1000
+	sectionDevicesPanelY = 40
+	fixedProfileBottom   = customTitleBarHeight + 38
+	sectionNavInset      = fixedProfileBottom - customTitleBarHeight + 12
+	twistLeftRowY        = sectionTwistPanelY + 36
+	twistLeftDetailY     = twistLeftRowY + 37
+	twistRightRowY       = twistLeftRowY + 74
+	twistRightDetailY    = twistRightRowY + 37
+)
+
+const (
 	idControlMode = 1001 + iota
 	idInputBackend
 	idHotasThrottleDevice
@@ -215,7 +305,7 @@ const (
 	idPedalMode
 	idPedalStrength
 	idDeadzone
-	idPreserve
+	idThrottleScale
 	idStart
 	idTestA
 	idTestCamLeft
@@ -278,16 +368,43 @@ const (
 	idTwistRightKeyThreshold
 	idTwistLeftOutputNegative
 	idTwistRightOutputNegative
+	idSteerScale
+	idSteerExpo
+	idThrottleExpo
+	idSteerExpo2
 	idComboList = 1700
 	idLearnBase = 1200
 )
 
 const (
-	idWASDLearnBase     = 1500
-	idWASDLabelBase     = 1510
-	idWASDIndicatorBase = 1520
-	idLearnClearBase    = 1600
-	idWASDClearBase     = 1650
+	idSectionSetup = 1710 + iota
+	idSectionTwist
+	idSectionMonitor
+	idSectionBindings
+	idSectionFoot
+	idSectionDevices
+	idSelectHOSAS
+	idSelectHOTAS
+)
+
+const (
+	idWindowMinimize = 1730 + iota
+	idWindowMaximize
+	idWindowClose
+)
+
+const (
+	idWASDLearnBase       = 1500
+	idWASDLabelBase       = 1510
+	idWASDIndicatorBase   = 1520
+	idLearnClearBase      = 1600
+	idWASDClearBase       = 1650
+	idThrottleScaleSlider = 1800
+	idSteerScaleSlider    = 1801
+	idSteerExpoSlider     = 1802
+	idThrottleExpoSlider  = 1803
+	idSteerExpo2Slider    = 1804
+	idShowOverlay         = 1810
 )
 
 type point struct{ X, Y int32 }
@@ -492,8 +609,12 @@ type config struct {
 	PedalInvert            bool                `json:"pedal_invert"`
 	PedalMode              string              `json:"pedal_mode"`
 	Deadzone               int                 `json:"deadzone"`
+	ThrottleScale          int                 `json:"throttle_scale"`
+	ThrottleExpo           int                 `json:"throttle_expo"`
+	SteerScale             int                 `json:"steer_scale"`
+	SteerExpo              int                 `json:"steer_expo"`
+	SteerExpo2             int                 `json:"steer_expo2"`
 	Bindings               map[string]binding  `json:"bindings"`
-	PreserveThrust         bool                `json:"preserve_thrust"`
 	PedalSteerStrength     int                 `json:"pedal_steer_strength"`
 	CameraSensitivity      int                 `json:"camera_sensitivity"`
 	CameraDeadzone         int                 `json:"camera_deadzone"`
@@ -752,7 +873,7 @@ type diDevice struct {
 	GUID         diGUID
 	GUIDString   string
 	Name         string
-	Ptr          uintptr
+	Ptr          unsafe.Pointer
 	LastAxes     [8]int32
 	HaveLast     bool
 	LastActivity time.Time
@@ -767,18 +888,38 @@ type diSnapshot struct {
 
 type directInputManager struct {
 	mu      sync.Mutex
-	di      uintptr
+	di      unsafe.Pointer
 	devices []*diDevice
 	hwnd    uintptr
 }
 
 var diEnumMu sync.Mutex
 var diEnumSink *[]diDeviceDesc
+var diEnumErr error
 var diEnumCallback = syscall.NewCallback(func(pInst, _ uintptr) uintptr {
 	if pInst == 0 {
 		return 1
 	}
-	inst := (*diDeviceInstanceW)(unsafe.Pointer(pInst))
+	var inst diDeviceInstanceW
+	currentProcess, _, _ := procGetCurrentProcess.Call()
+	bytesRead := uintptr(0)
+	result, _, callErr := procReadProcessMemory.Call(
+		currentProcess,
+		pInst,
+		uintptr(unsafe.Pointer(&inst)),
+		unsafe.Sizeof(inst),
+		uintptr(unsafe.Pointer(&bytesRead)),
+	)
+	if result == 0 || bytesRead != unsafe.Sizeof(inst) {
+		diEnumMu.Lock()
+		if result == 0 {
+			diEnumErr = fmt.Errorf("ReadProcessMemory failed: %v", callErr)
+		} else {
+			diEnumErr = fmt.Errorf("ReadProcessMemory copied %d of %d bytes", bytesRead, unsafe.Sizeof(inst))
+		}
+		diEnumMu.Unlock()
+		return 0
+	}
 	d := diDeviceDesc{GUID: inst.GuidInstance, Name: strings.TrimSpace(syscall.UTF16ToString(inst.TszProductName[:]))}
 	if d.Name == "" {
 		d.Name = strings.TrimSpace(syscall.UTF16ToString(inst.TszInstanceName[:]))
@@ -812,24 +953,25 @@ func diGUIDString(g diGUID) string {
 		g.Data1, g.Data2, g.Data3, g.Data4[0], g.Data4[1], g.Data4[2], g.Data4[3], g.Data4[4], g.Data4[5], g.Data4[6], g.Data4[7])
 }
 
-func comMethod(iface uintptr, slot int) uintptr {
-	if iface == 0 {
+func comMethod(iface unsafe.Pointer, slot int) uintptr {
+	if iface == nil {
 		return 0
 	}
-	vtbl := *(*uintptr)(unsafe.Pointer(iface))
-	if vtbl == 0 {
+	vtbl := *(*unsafe.Pointer)(iface)
+	if vtbl == nil {
 		return 0
 	}
-	return *(*uintptr)(unsafe.Pointer(vtbl + uintptr(slot)*unsafe.Sizeof(uintptr(0))))
+	methodOffset := uintptr(slot) * unsafe.Sizeof(uintptr(0))
+	return *(*uintptr)(unsafe.Add(vtbl, methodOffset))
 }
 
-func comCall(iface uintptr, slot int, args ...uintptr) uintptr {
+func comCall(iface unsafe.Pointer, slot int, args ...uintptr) uintptr {
 	fn := comMethod(iface, slot)
 	if fn == 0 {
 		return ^uintptr(0)
 	}
 	callArgs := make([]uintptr, 0, len(args)+1)
-	callArgs = append(callArgs, iface)
+	callArgs = append(callArgs, uintptr(iface))
 	callArgs = append(callArgs, args...)
 	r1, _, _ := syscall.SyscallN(fn, callArgs...)
 	return r1
@@ -881,11 +1023,17 @@ func (m *directInputManager) Start(hwnd uintptr) error {
 	if err := procDirectInput8Create.Find(); err != nil {
 		return fmt.Errorf("dinput8.dll unavailable: %v", err)
 	}
+	if err := procGetCurrentProcess.Find(); err != nil {
+		return fmt.Errorf("kernel32!GetCurrentProcess unavailable: %v", err)
+	}
+	if err := procReadProcessMemory.Find(); err != nil {
+		return fmt.Errorf("kernel32!ReadProcessMemory unavailable: %v", err)
+	}
 	hinst, _, _ := procGetModuleHandleW.Call(0)
 	iid := diGUID{Data1: 0xBF798031, Data2: 0x483A, Data3: 0x4DA2, Data4: [8]byte{0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00}}
-	var di uintptr
+	var di unsafe.Pointer
 	hr, _, _ := procDirectInput8Create.Call(hinst, 0x0800, uintptr(unsafe.Pointer(&iid)), uintptr(unsafe.Pointer(&di)), 0)
-	if uint32(hr) != 0 || di == 0 {
+	if uint32(hr) != 0 || di == nil {
 		return fmt.Errorf("DirectInput8Create failed (0x%08X)", uint32(hr))
 	}
 	m.di = di
@@ -893,17 +1041,24 @@ func (m *directInputManager) Start(hwnd uintptr) error {
 	descs := []diDeviceDesc{}
 	diEnumMu.Lock()
 	diEnumSink = &descs
+	diEnumErr = nil
 	diEnumMu.Unlock()
 	// IDirectInput8::EnumDevices slot 4; GAMECTRL=4, ATTACHEDONLY=1.
 	comCall(m.di, 4, 4, diEnumCallback, 0, 1)
 	diEnumMu.Lock()
+	enumErr := diEnumErr
+	diEnumErr = nil
 	diEnumSink = nil
 	diEnumMu.Unlock()
+	if enumErr != nil {
+		m.stopLocked()
+		return fmt.Errorf("DirectInput device enumeration failed: %w", enumErr)
+	}
 
 	for _, desc := range descs {
-		var dev uintptr
+		var dev unsafe.Pointer
 		hr = comCall(m.di, 3, uintptr(unsafe.Pointer(&desc.GUID)), uintptr(unsafe.Pointer(&dev)), 0)
-		if uint32(hr) != 0 || dev == 0 {
+		if uint32(hr) != 0 || dev == nil {
 			continue
 		}
 		objs, fmtv := buildDIDataFormat()
@@ -940,15 +1095,15 @@ func (m *directInputManager) Stop() {
 
 func (m *directInputManager) stopLocked() {
 	for _, d := range m.devices {
-		if d.Ptr != 0 {
+		if d.Ptr != nil {
 			comCall(d.Ptr, 8) // Unacquire
 			comCall(d.Ptr, 2) // Release
 		}
 	}
 	m.devices = nil
-	if m.di != 0 {
+	if m.di != nil {
 		comCall(m.di, 2)
-		m.di = 0
+		m.di = nil
 	}
 }
 
@@ -958,7 +1113,7 @@ func diAxes(st diJoyState) [8]int32 {
 
 func (m *directInputManager) stateLocked(d *diDevice) (diJoyState, bool) {
 	var st diJoyState
-	if d == nil || d.Ptr == 0 {
+	if d == nil || d.Ptr == nil {
 		return st, false
 	}
 	_ = comCall(d.Ptr, 25) // Poll
@@ -1283,6 +1438,13 @@ type appState struct {
 	cameraTestValue        float64
 	monitorMu              sync.RWMutex
 	monitor                monitorState
+	overlayVisible         atomic.Bool
+	overlayHwnd            uintptr
+	overlayClassReady      bool
+	overlayLast            overlaySnapshot
+	overlayTicks           int
+	liveCardActive         atomic.Bool
+	liveCardLast           overlaySnapshot
 	keyboardMu             sync.Mutex
 	keyboardDown           map[uint16]bool
 	tooltipHwnd            uintptr
@@ -1290,12 +1452,46 @@ type appState struct {
 	tooltipHelp            map[uintptr]string
 	tooltipPopup           uintptr // legacy field; v1.96 renders help inside the main window
 	tooltipHover           uintptr
+	tooltipControls        map[int]uintptr
 	comboOptions           map[int][]string
 	comboSelected          map[int]int
 	comboList              uintptr
 	comboActiveID          int
 	comboHidden            []uintptr // controls temporarily hidden beneath the in-window selector
 	baseRects              map[uintptr]rect
+	contextVisible         map[uintptr]bool
+	controlSections        map[uintptr]int
+	activeControlSection   int
+	cards                  []uiCard
+	checkboxVisible        map[int]uintptr
+	valueSliders           []valueSlider
+	bgBrush                uintptr
+	sidebarBrush           uintptr
+	cardBrush              uintptr
+	fieldBrush             uintptr
+	borderBrush            uintptr
+	accentBrush            uintptr
+	cyanBrush              uintptr
+	closeBrush             uintptr
+	borderPen              uintptr
+	accentPen              uintptr
+	cyanPen                uintptr
+	mutedPen               uintptr
+	uiColorsReady          bool
+	applyingUI             bool
+	sliderChanging         bool
+	topNavigationID        int
+	liveLeftThrust         float64
+	liveRightThrust        float64
+	sidebarDivider         uintptr
+	sidebarTitle           uintptr
+	sidebarFooter          uintptr
+	sidebarNavigation      []uintptr
+	verticalBar            *customScrollBar
+	horizontalBar          *customScrollBar
+	scrollBars             map[uintptr]*customScrollBar
+	scrollBarClassReady    bool
+	childClips             map[uintptr]rect
 	scrollX                int
 	scrollY                int
 	contentWidth           int
@@ -1368,17 +1564,34 @@ var (
 	procLoadCursorW              = user32.NewProc("LoadCursorW")
 	procGetCursorPos             = user32.NewProc("GetCursorPos")
 	procGetWindowRect            = user32.NewProc("GetWindowRect")
+	procIsZoomed                 = user32.NewProc("IsZoomed")
 	procScreenToClient           = user32.NewProc("ScreenToClient")
 	procGetClientRect            = user32.NewProc("GetClientRect")
-	procSetScrollRange           = user32.NewProc("SetScrollRange")
-	procSetScrollPos             = user32.NewProc("SetScrollPos")
-	procShowScrollBar            = user32.NewProc("ShowScrollBar")
 	procIsWindowVisible          = user32.NewProc("IsWindowVisible")
 	procBringWindowToTop         = user32.NewProc("BringWindowToTop")
 	procSetFocus                 = user32.NewProc("SetFocus")
+	procGetDlgCtrlID             = user32.NewProc("GetDlgCtrlID")
 	procCreateIconFromResourceEx = user32.NewProc("CreateIconFromResourceEx")
 	procGetModuleHandleW         = kernel32.NewProc("GetModuleHandleW")
+	procGetCurrentProcess        = kernel32.NewProc("GetCurrentProcess")
+	procReadProcessMemory        = kernel32.NewProc("ReadProcessMemory")
 	procGetStockObject           = gdi32.NewProc("GetStockObject")
+	procCreateSolidBrush         = gdi32.NewProc("CreateSolidBrush")
+	procCreatePen                = gdi32.NewProc("CreatePen")
+	procDeleteObject             = gdi32.NewProc("DeleteObject")
+	procSelectObject             = gdi32.NewProc("SelectObject")
+	procSetTextColor             = gdi32.NewProc("SetTextColor")
+	procSetBkColor               = gdi32.NewProc("SetBkColor")
+	procSetBkMode                = gdi32.NewProc("SetBkMode")
+	procFillRect                 = user32.NewProc("FillRect")
+	procRoundRect                = gdi32.NewProc("RoundRect")
+	procDrawTextW                = user32.NewProc("DrawTextW")
+	procDrawFocusRect            = user32.NewProc("DrawFocusRect")
+	procMoveToEx                 = gdi32.NewProc("MoveToEx")
+	procLineTo                   = gdi32.NewProc("LineTo")
+	procEllipse                  = gdi32.NewProc("Ellipse")
+	procBeginPaint               = user32.NewProc("BeginPaint")
+	procEndPaint                 = user32.NewProc("EndPaint")
 	procInitCommonControlsEx     = comctl32.NewProc("InitCommonControlsEx")
 
 	// WinMM device enumeration/capability probing is intentionally isolated in
@@ -1465,14 +1678,11 @@ func utf16ptr(s string) *uint16 {
 
 func loword(v uintptr) int { return int(v & 0xffff) }
 func hiword(v uintptr) int { return int((v >> 16) & 0xffff) }
-func clamp(v, lo, hi float64) float64 {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
+func signedLowWord(v uintptr) int32 {
+	return int32(int16(uint16(v)))
+}
+func signedHighWord(v uintptr) int32 {
+	return int32(int16(uint16(v >> 16)))
 }
 
 type initCommonControlsEx struct {
@@ -1481,6 +1691,80 @@ type initCommonControlsEx struct {
 }
 
 type rect struct{ Left, Top, Right, Bottom int32 }
+
+func customFrameHitTest(bounds rect, cursor point, maximized bool, borderX, borderY int32) uintptr {
+	if cursor.X < bounds.Left || cursor.X >= bounds.Right || cursor.Y < bounds.Top || cursor.Y >= bounds.Bottom {
+		return HTNOWHERE
+	}
+	if !maximized {
+		left := cursor.X < bounds.Left+borderX
+		right := cursor.X >= bounds.Right-borderX
+		top := cursor.Y < bounds.Top+borderY
+		bottom := cursor.Y >= bounds.Bottom-borderY
+		switch {
+		case left && top:
+			return HTTOPLEFT
+		case right && top:
+			return HTTOPRIGHT
+		case left && bottom:
+			return HTBOTTOMLEFT
+		case right && bottom:
+			return HTBOTTOMRIGHT
+		case left:
+			return HTLEFT
+		case right:
+			return HTRIGHT
+		case top:
+			return HTTOP
+		case bottom:
+			return HTBOTTOM
+		}
+	}
+	captionButtonLeft := bounds.Right - captionButtonInset - 3*captionButtonWidth
+	captionButtonRight := bounds.Right - captionButtonInset
+	captionButtonTop := bounds.Top + (customTitleBarHeight-captionButtonHeight)/2
+	captionButtonBottom := captionButtonTop + captionButtonHeight
+	if cursor.X >= captionButtonLeft && cursor.X < captionButtonRight &&
+		cursor.Y >= captionButtonTop && cursor.Y < captionButtonBottom {
+		return HTCLIENT
+	}
+	if cursor.Y < bounds.Top+customTitleBarHeight {
+		return HTCAPTION
+	}
+	return HTCLIENT
+}
+
+type uiCard struct {
+	title   string
+	bounds  rect
+	section int
+	profile string
+	curve   bool
+	meter   string
+	live    bool
+}
+
+type drawItem struct {
+	CtlType    uint32
+	CtlID      uint32
+	ItemID     uint32
+	ItemAction uint32
+	ItemState  uint32
+	HwndItem   uintptr
+	HDC        uintptr
+	RcItem     rect
+	ItemData   uintptr
+}
+
+type paintStruct struct {
+	HDC       uintptr
+	Erase     int32
+	PaintRect rect
+	Restore   int32
+	IncUpdate int32
+	Reserved  [32]byte
+}
+
 type toolInfo struct {
 	CbSize     uint32
 	UFlags     uint32
@@ -1851,11 +2135,15 @@ func main() {
 	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icc)))
 	app = &appState{
 		controls:         make(map[int]uintptr),
+		tooltipControls:  make(map[int]uintptr),
+		checkboxVisible:  make(map[int]uintptr),
 		deviceComboIDs:   make(map[int][]int),
 		deviceComboGUIDs: make(map[int][]string),
 		baseRects:        make(map[uintptr]rect),
-		contentWidth:     1130,
-		contentHeight:    1740,
+		contextVisible:   make(map[uintptr]bool),
+		controlSections:  make(map[uintptr]int),
+		contentWidth:     contentOffset + 1130,
+		contentHeight:    1740 + layoutShift,
 		axisNames:        []string{"X", "Y", "Z", "X Rotation (R)", "Y Rotation (U)", "Z Rotation (V)"},
 		tooltipHelp:      make(map[uintptr]string),
 		keyboardDown:     make(map[uint16]bool),
@@ -1883,17 +2171,17 @@ func main() {
 		HInstance:     hInstance,
 		HIcon:         bigIcon,
 		HCursor:       cursor,
-		HbrBackground: uintptr(COLOR_BTNFACE + 1),
+		HbrBackground: 0,
 		LpszClassName: className,
 		HIconSm:       smallIcon,
 	}
 	if r, _, e := procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
 		panic(fmt.Sprintf("RegisterClassExW failed: %v", e))
 	}
-	style := uintptr(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME | WS_VSCROLL | WS_HSCROLL)
+	style := uintptr(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME | WS_CLIPCHILDREN)
 	hwnd, _, e := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16ptr(appTitle))), style,
-		CW_USEDEFAULT, CW_USEDEFAULT, 1160, 900, 0, 0, hInstance, 0,
+		CW_USEDEFAULT, CW_USEDEFAULT, 1380, 616, 0, 0, hInstance, 0,
 	)
 	if hwnd == 0 {
 		panic(fmt.Sprintf("CreateWindowExW failed: %v", e))
@@ -1946,8 +2234,7 @@ func defaultConfig() config {
 		LeftID: 0, RightID: 1, PedalID: -1,
 		TwistLeft: defaultAuxiliaryAxis(), TwistRight: defaultAuxiliaryAxis(),
 		LeftAxis: 1, RightAxis: 1, PedalAxis: 0,
-		PedalMode: "Off", Deadzone: 6,
-		PreserveThrust:         false,
+		PedalMode: "Off", Deadzone: 6, ThrottleScale: 100, SteerScale: 100,
 		PedalSteerStrength:     30,
 		CameraSensitivity:      100,
 		CameraDeadzone:         6,
@@ -1998,6 +2285,11 @@ func loadConfig(c *config) {
 		if tmp.Deadzone < 0 || tmp.Deadzone > 40 {
 			tmp.Deadzone = 6
 		}
+		tmp.ThrottleScale = normalizeScalePercent(tmp.ThrottleScale)
+		tmp.SteerScale = normalizeSteerScalePercent(tmp.SteerScale)
+		tmp.ThrottleExpo = normalizeExpoPercent(tmp.ThrottleExpo)
+		tmp.SteerExpo = normalizeExpoPercent(tmp.SteerExpo)
+		tmp.SteerExpo2 = normalizeExpoPercent(tmp.SteerExpo2)
 		if tmp.PedalSteerStrength <= 0 || tmp.PedalSteerStrength > 100 {
 			tmp.PedalSteerStrength = 30
 		}
@@ -2130,9 +2422,24 @@ func loadConfig(c *config) {
 		d.InputBackend = "WinMM"
 	}
 	d.InputBackend = normalizeInputBackend(d.InputBackend)
+	readString(raw, "control_mode", &d.ControlMode)
+	d.ControlMode = normalizeControlMode(d.ControlMode)
+	readInt(raw, "hotas_throttle_id", &d.HotasThrottleID)
+	readString(raw, "hotas_throttle_di_guid", &d.HotasThrottleDIGUID)
+	readAxis(raw, "hotas_throttle_axis", &d.HotasThrottleAxis)
+	readBool(raw, "hotas_throttle_invert", &d.HotasThrottleInvert)
+	readInt(raw, "hotas_stick_id", &d.HotasStickID)
+	readString(raw, "hotas_stick_di_guid", &d.HotasStickDIGUID)
+	readAxis(raw, "hotas_stick_x_axis", &d.HotasStickXAxis)
+	readAxis(raw, "hotas_stick_y_axis", &d.HotasStickYAxis)
+	readBool(raw, "hotas_stick_invert_x", &d.HotasStickInvertX)
+	readBool(raw, "hotas_stick_invert_y", &d.HotasStickInvertY)
 	readInt(raw, "left_id", &d.LeftID)
+	readString(raw, "left_di_guid", &d.LeftDIGUID)
 	readInt(raw, "right_id", &d.RightID)
+	readString(raw, "right_di_guid", &d.RightDIGUID)
 	readInt(raw, "pedal_id", &d.PedalID)
+	readString(raw, "pedal_di_guid", &d.PedalDIGUID)
 	readAxis(raw, "left_axis", &d.LeftAxis)
 	readAxis(raw, "right_axis", &d.RightAxis)
 	readAxis(raw, "pedal_axis", &d.PedalAxis)
@@ -2143,7 +2450,11 @@ func loadConfig(c *config) {
 	readBool(raw, "pedal_invert", &d.PedalInvert)
 	readPedalMode(raw, "pedal_mode", &d.PedalMode)
 	readDeadzone(raw, "deadzone", &d.Deadzone)
-	readBool(raw, "preserve_thrust", &d.PreserveThrust)
+	readInt(raw, "throttle_scale", &d.ThrottleScale)
+	readInt(raw, "steer_scale", &d.SteerScale)
+	readInt(raw, "throttle_expo", &d.ThrottleExpo)
+	readInt(raw, "steer_expo", &d.SteerExpo)
+	readInt(raw, "steer_expo2", &d.SteerExpo2)
 	readInt(raw, "pedal_steer_strength", &d.PedalSteerStrength)
 	readInt(raw, "camera_sensitivity", &d.CameraSensitivity)
 	readInt(raw, "camera_deadzone", &d.CameraDeadzone)
@@ -2167,6 +2478,15 @@ func loadConfig(c *config) {
 	readBool(raw, "thumb_wasd_invert_side", &d.ThumbWASDInvertSide)
 	readBool(raw, "thumb_wasd_invert_forward", &d.ThumbWASDInvertForward)
 	readInt(raw, "thumb_wasd_threshold", &d.ThumbWASDThreshold)
+	readBool(raw, "thumb_wasd_use_raw_hid", &d.ThumbWASDUseRawHID)
+	readString(raw, "thumb_hid_side_path", &d.ThumbHIDSidePath)
+	readString(raw, "thumb_hid_forward_path", &d.ThumbHIDForwardPath)
+	readInt(raw, "thumb_hid_side_usage", &d.ThumbHIDSideUsage)
+	readInt(raw, "thumb_hid_forward_usage", &d.ThumbHIDForwardUsage)
+	readInt32(raw, "thumb_hid_side_center", &d.ThumbHIDSideCenter)
+	readInt32(raw, "thumb_hid_forward_center", &d.ThumbHIDForwardCenter)
+	readInt32(raw, "thumb_hid_side_span", &d.ThumbHIDSideSpan)
+	readInt32(raw, "thumb_hid_forward_span", &d.ThumbHIDForwardSpan)
 	if b, ok := raw["thumb_di_side_guid"]; ok {
 		_ = json.Unmarshal(b, &d.ThumbDISideGUID)
 	}
@@ -2178,13 +2498,41 @@ func loadConfig(c *config) {
 	}
 	readInt(raw, "thumb_di_side_axis", &d.ThumbDISideAxis)
 	readInt(raw, "thumb_di_forward_axis", &d.ThumbDIForwardAxis)
+	readInt32(raw, "thumb_di_side_center", &d.ThumbDISideCenter)
+	readInt32(raw, "thumb_di_forward_center", &d.ThumbDIForwardCenter)
+	readInt32(raw, "thumb_di_side_span", &d.ThumbDISideSpan)
+	readInt32(raw, "thumb_di_forward_span", &d.ThumbDIForwardSpan)
 	readInt(raw, "polling_hz", &d.PollingHz)
+	maxAxis := 7
+	if normalizeInputBackend(d.InputBackend) == "WinMM" {
+		maxAxis = 5
+	}
+	for _, axis := range []struct {
+		value    *int
+		fallback int
+	}{
+		{&d.HotasThrottleAxis, 1},
+		{&d.HotasStickXAxis, 0},
+		{&d.HotasStickYAxis, 1},
+		{&d.LeftAxis, 1},
+		{&d.RightAxis, 1},
+		{&d.PedalAxis, 0},
+	} {
+		if *axis.value < 0 || *axis.value > maxAxis {
+			*axis.value = axis.fallback
+		}
+	}
 	if d.CameraSensitivity <= 0 || d.CameraSensitivity > 250 {
 		d.CameraSensitivity = 100
 	}
 	if d.CameraDeadzone < 0 || d.CameraDeadzone > 40 {
 		d.CameraDeadzone = 6
 	}
+	d.ThrottleScale = normalizeScalePercent(d.ThrottleScale)
+	d.SteerScale = normalizeSteerScalePercent(d.SteerScale)
+	d.ThrottleExpo = normalizeExpoPercent(d.ThrottleExpo)
+	d.SteerExpo = normalizeExpoPercent(d.SteerExpo)
+	d.SteerExpo2 = normalizeExpoPercent(d.SteerExpo2)
 	if !validKeyboardVK(d.PedalLeftKey) {
 		d.PedalLeftKey = VK_DELETE
 	}
@@ -2213,18 +2561,10 @@ func loadConfig(c *config) {
 	if d.ThumbWASDForwardAxis < 0 || d.ThumbWASDForwardAxis > 5 {
 		d.ThumbWASDForwardAxis = 1
 	}
-	if b, ok := raw["twist_left"]; ok {
-		_ = json.Unmarshal(b, &d.TwistLeft)
-	}
-	if b, ok := raw["twist_right"]; ok {
-		_ = json.Unmarshal(b, &d.TwistRight)
-	}
-	maxAuxAxis := 7
-	if normalizeInputBackend(d.InputBackend) == "WinMM" {
-		maxAuxAxis = 5
-	}
-	validateAuxiliaryAxis(&d.TwistLeft, raw["twist_left"] != nil, maxAuxAxis)
-	validateAuxiliaryAxis(&d.TwistRight, raw["twist_right"] != nil, maxAuxAxis)
+	readAuxiliaryAxis(raw, "twist_left", &d.TwistLeft)
+	readAuxiliaryAxis(raw, "twist_right", &d.TwistRight)
+	validateAuxiliaryAxis(&d.TwistLeft, raw["twist_left"] != nil, maxAxis)
+	validateAuxiliaryAxis(&d.TwistRight, raw["twist_right"] != nil, maxAxis)
 	d.PedalMode = normalizePedalMode(d.PedalMode)
 	d.OnFootMode = normalizeOnFootMode(d.OnFootMode)
 	if b, ok := raw["bindings"]; ok {
@@ -2256,6 +2596,31 @@ func readInt(raw map[string]json.RawMessage, k string, dst *int) {
 		}
 	}
 }
+func readInt32(raw map[string]json.RawMessage, k string, dst *int32) {
+	b, ok := raw[k]
+	if !ok {
+		return
+	}
+	var n int32
+	if json.Unmarshal(b, &n) == nil {
+		*dst = n
+		return
+	}
+	var s string
+	if json.Unmarshal(b, &s) == nil {
+		if parsed, err := strconv.ParseInt(s, 10, 32); err == nil {
+			*dst = int32(parsed)
+		}
+		return
+	}
+	var f float64
+	if json.Unmarshal(b, &f) == nil {
+		rounded := math.Round(f)
+		if rounded >= -(1<<31) && rounded <= 1<<31-1 {
+			*dst = int32(rounded)
+		}
+	}
+}
 func readBool(raw map[string]json.RawMessage, k string, dst *bool) {
 	if b, ok := raw[k]; ok {
 		_ = json.Unmarshal(b, dst)
@@ -2265,6 +2630,29 @@ func readString(raw map[string]json.RawMessage, k string, dst *string) {
 	if b, ok := raw[k]; ok {
 		_ = json.Unmarshal(b, dst)
 	}
+}
+func readAuxiliaryAxis(raw map[string]json.RawMessage, k string, dst *auxiliaryAxisConfig) {
+	b, ok := raw[k]
+	if !ok {
+		return
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(b, &fields) != nil {
+		return
+	}
+	readInt(fields, "device_id", &dst.DeviceID)
+	readString(fields, "di_guid", &dst.DIGUID)
+	readAxis(fields, "axis", &dst.Axis)
+	readBool(fields, "invert", &dst.Invert)
+	readString(fields, "axis_type", &dst.AxisType)
+	readInt(fields, "deadzone", &dst.Deadzone)
+	readPedalMode(fields, "mode", &dst.Mode)
+	readInt(fields, "steer_strength", &dst.SteerStrength)
+	readInt(fields, "camera_sensitivity", &dst.CameraSensitivity)
+	readInt(fields, "camera_deadzone", &dst.CameraDeadzone)
+	readInt(fields, "left_key", &dst.LeftKey)
+	readInt(fields, "right_key", &dst.RightKey)
+	readInt(fields, "key_threshold", &dst.KeyThreshold)
 }
 
 func normalizeInputBackend(s string) string {
@@ -2365,27 +2753,6 @@ func readDeadzone(raw map[string]json.RawMessage, k string, dst *int) {
 	}
 }
 
-func readAxis(raw map[string]json.RawMessage, k string, dst *int) {
-	b, ok := raw[k]
-	if !ok {
-		return
-	}
-	var n int
-	if json.Unmarshal(b, &n) == nil {
-		*dst = n
-		return
-	}
-	var s string
-	if json.Unmarshal(b, &s) == nil {
-		for i, a := range []string{"X", "Y", "Z", "R", "U", "V"} {
-			if strings.EqualFold(s, a) {
-				*dst = i
-				return
-			}
-		}
-	}
-}
-
 func normalizeBindingMap(in map[string]binding) map[string]binding {
 	out := make(map[string]binding)
 	for k, v := range in {
@@ -2410,23 +2777,6 @@ func normalizeBindingBackend(s string) string {
 		return "DirectInput"
 	}
 	return "WinMM"
-}
-func normalizeBindingKey(k string) string {
-	s := strings.ToUpper(strings.TrimSpace(k))
-	r := strings.NewReplacer(" ", "", "-", "", "_", "", "/", "")
-	s = r.Replace(s)
-	aliases := map[string]string{
-		"XBOXA": "A", "XBOXB": "B", "XBOXX": "X", "XBOXY": "Y",
-		"LEFTBUMPER": "LB", "RIGHTBUMPER": "RB", "L1": "LB", "R1": "RB",
-		"LEFTTRIGGER": "LT", "RIGHTTRIGGER": "RT", "L2": "LT", "R2": "RT", "BRAKE": "LT",
-		"BACKVIEW": "BACK", "VIEW": "BACK", "STARTMENU": "START", "MENU": "START",
-		"LEFTSTICKCLICK": "LTHUMB", "RIGHTSTICKCLICK": "RTHUMB", "LTHUMB": "LTHUMB", "RTHUMB": "RTHUMB",
-		"DPADUP": "DUP", "DPADDOWN": "DDOWN", "DPADLEFT": "DLEFT", "DPADRIGHT": "DRIGHT",
-	}
-	if a, ok := aliases[s]; ok {
-		return a
-	}
-	return s
 }
 
 func validKeyboardVK(v int) bool {
@@ -2811,30 +3161,6 @@ func applyDeadzone(v float64, pct int) float64 {
 	return clamp(out, -1, 1)
 }
 
-func calculateDrive(left, right float64, preserve bool) float64 {
-	if !preserve {
-		return clamp((left+right)/2.0, -1, 1)
-	}
-	// Hybrid preserve-thrust mode:
-	// 1) Both forward: strongest forward stick sets thrust, so differential steering costs no thrust.
-	// 2) One forward + one backward: the backward stick progressively scrubs that forward thrust.
-	//    Example R=+1: L=0 => 100%, L=-.25 => 75%, L=-.5 => 50%, L=-1 => 0%.
-	// 3) Both backward: retain the original averaging behavior, so both at -1 remains full brake/reverse.
-	if left >= 0 && right >= 0 {
-		return math.Max(left, right)
-	}
-	if left <= 0 && right <= 0 {
-		return clamp((left+right)/2.0, -1, 0)
-	}
-	if left > 0 && right < 0 {
-		return clamp(left*(1-math.Abs(right)), 0, 1)
-	}
-	if right > 0 && left < 0 {
-		return clamp(right*(1-math.Abs(left)), 0, 1)
-	}
-	return 0
-}
-
 func monitorHorizontalAxis(forwardAxis int) int {
 	if forwardAxis == 0 {
 		return 1
@@ -2971,8 +3297,8 @@ func (a *appState) pollLoop() {
 				}
 			}
 
-			drive := calculateDrive(l, r, c.PreserveThrust)
-			steer := clamp(l-r, -1, 1)
+			drive := calculateDrive(l, r, c.ThrottleScale, c.ThrottleExpo)
+			steer := calculateSteering(l, r, c.SteerScale, c.SteerExpo, c.SteerExpo2)
 			hotasBrake := false
 			hotasBrakeAmount := 0.0
 			if isHOTAS {
@@ -3149,13 +3475,14 @@ func (a *appState) pollLoop() {
 			a.applyKeyboardOutputs(keyboardWanted)
 
 			// Live monitor visuals intentionally do not do the extra axis work while
-			// game mapping is active. The controller path remains at the selected polling rate.
+			// game mapping is active, unless the overlay or Steuerung live card needs them.
+			// The controller path remains at the selected polling rate.
 			leftX, leftY, rightX, rightY := 0.0, l, 0.0, r
 			active := a.mappingActive.Load()
 			if isHOTAS {
 				leftX, leftY = hotasX, hotasY
 				rightX, rightY = 0, 0
-			} else if !active {
+			} else if !active || a.overlayVisible.Load() || a.liveCardActive.Load() {
 				hax := monitorHorizontalAxis(c.LeftAxis)
 				if raw, ok := a.readConfiguredAxis(backend, c.LeftDIGUID, c.LeftID, hax, false, states, okmap); ok {
 					leftX = applyDeadzone(raw, c.Deadzone)
@@ -3641,11 +3968,50 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	switch message {
 	case WM_CREATE:
 		app.hwnd = hwnd
+		app.initializeUITheme()
 		app.createUI()
+		procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0,
+			SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED)
 		return 0
+	case WM_NCCALCSIZE:
+		if wParam != 0 {
+			return 0
+		}
 	case WM_COMMAND:
 		app.onCommand(loword(wParam), hiword(wParam))
 		return 0
+	case WM_DRAWITEM:
+		if item, ok := readCurrentProcessValue[drawItem](lParam); ok && app.drawOwnerButton(item) {
+			return 1
+		}
+	case WM_CTLCOLORSTATIC, WM_CTLCOLOREDIT, WM_CTLCOLORBTN, WM_CTLCOLORLISTBOX, WM_CTLCOLORMSGBOX:
+		if brush := app.controlColor(message, wParam, lParam); brush != 0 {
+			return brush
+		}
+	case WM_ERASEBKGND:
+		if app.eraseWindowBackground(wParam) {
+			return 1
+		}
+	case WM_PAINT:
+		var ps paintStruct
+		if hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps))); hdc != 0 {
+			app.drawNativeUI(hdc)
+			app.drawCustomFrame(hdc)
+			procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+			return 0
+		}
+	case WM_NCHITTEST:
+		var bounds rect
+		if ok, _, _ := procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&bounds))); ok != 0 {
+			maximized, _, _ := procIsZoomed.Call(hwnd)
+			hit := customFrameHitTest(bounds, point{
+				X: signedLowWord(lParam),
+				Y: signedHighWord(lParam),
+			}, maximized != 0, windowResizeBorder, windowResizeBorder)
+			if hit != HTNOWHERE {
+				return hit
+			}
+		}
 	case WM_LBUTTONDOWN:
 		app.closeComboIfPointerOutside()
 		return 0
@@ -3661,17 +4027,25 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		}
 	case WM_SIZE:
 		app.closeCombo(false)
+		app.updateCaptionButtons(wParam)
+		app.resizeCaptionButtons()
+		app.resizeSidebar()
 		app.updateScrollbars()
 		return 0
-	case WM_VSCROLL:
-		app.closeCombo(false)
-		app.handleScroll(false, wParam)
-		return 0
 	case WM_HSCROLL:
-		app.closeCombo(false)
-		app.handleScroll(true, wParam)
-		return 0
+		if spec, ok := app.valueSliderForHandle(lParam); ok {
+			app.handleValueSlider(spec, loword(wParam))
+			return 0
+		}
 	case WM_TIMER:
+		if wParam == overlayTimerID {
+			app.refreshOverlay()
+			return 0
+		}
+		if wParam == liveCardTimerID {
+			app.refreshLiveCard()
+			return 0
+		}
 		app.refreshMonitor()
 		app.refreshDirectInputMonitor()
 		app.refreshHotasDirectInputMonitor()
@@ -3694,6 +4068,8 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		return 0
 	case WM_DESTROY:
 		procKillTimer.Call(hwnd, 1)
+		app.hideOverlay(false)
+		app.releaseUITheme()
 		app.stopOnce.Do(func() { close(app.stopCh) })
 		procPostQuitMessage.Call(0)
 		return 0
@@ -3703,6 +4079,13 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 }
 
 func (a *appState) createControl(class, text string, style uintptr, x, y, w, h, id int) uintptr {
+	return a.createControlAt(class, text, style, x+contentOffset, y, w, h, id)
+}
+
+func (a *appState) createControlAt(class, text string, style uintptr, x, y, w, h, id int) uintptr {
+	if strings.EqualFold(class, "BUTTON") && style&0xF == BS_PUSHBUTTON {
+		style = style&^uintptr(0xF) | BS_OWNERDRAW
+	}
 	ctrl, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(utf16ptr(class))), uintptr(unsafe.Pointer(utf16ptr(text))), style, uintptr(x), uintptr(y), uintptr(w), uintptr(h), a.hwnd, uintptr(id), 0, 0)
 	if ctrl != 0 && a.font != 0 {
 		procSendMessageW.Call(ctrl, WM_SETFONT, a.font, 1)
@@ -3710,19 +4093,41 @@ func (a *appState) createControl(class, text string, style uintptr, x, y, w, h, 
 	if id != 0 {
 		a.controls[id] = ctrl
 	}
+	if ctrl != 0 && a.controlSections != nil && a.activeControlSection != 0 {
+		a.controlSections[ctrl] = a.activeControlSection
+	}
 	if ctrl != 0 && a.baseRects != nil {
 		a.baseRects[ctrl] = rect{Left: int32(x), Top: int32(y), Right: int32(x + w), Bottom: int32(y + h)}
+	}
+	if ctrl != 0 && a.contextVisible != nil {
+		a.contextVisible[ctrl] = style&WS_VISIBLE != 0
 	}
 	return ctrl
 }
 func (a *appState) createLabel(text string, x, y, w, h int) uintptr {
 	return a.createControl("STATIC", text, WS_CHILD|WS_VISIBLE|SS_LEFT, x, y, w, h, 0)
 }
+func (a *appState) createFixedControl(class, text string, style uintptr, x, y, w, h, id int) uintptr {
+	hwnd := a.createControlAt(class, text, style, x, y, w, h, id)
+	delete(a.baseRects, hwnd)
+	return hwnd
+}
 func (a *appState) createButton(text string, x, y, w, h, id int) uintptr {
-	return a.createControl("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, x, y, w, h, id)
+	return a.createControl("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, x, y, w, h, id)
 }
 func (a *appState) createCheck(text string, x, y, w, h, id int) uintptr {
-	return a.createControl("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX, x, y, w, h, id)
+	state := a.createControl("BUTTON", text, WS_CHILD|WS_TABSTOP|BS_AUTOCHECKBOX, x, y, w, h, id)
+	visible := a.createControl("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, x, y, w, h, id)
+	a.controls[id] = state
+	if a.checkboxVisible == nil {
+		a.checkboxVisible = make(map[int]uintptr)
+	}
+	if a.tooltipControls == nil {
+		a.tooltipControls = make(map[int]uintptr)
+	}
+	a.checkboxVisible[id] = visible
+	a.tooltipControls[id] = visible
+	return visible
 }
 func (a *appState) createCombo(x, y, w, h, id int) uintptr {
 	// Capture-friendly picker: the closed selector is a normal child button and the
@@ -3934,6 +4339,11 @@ func (a *appState) createEdit(text string, x, y, w, h, id int) uintptr {
 	return a.createControl("EDIT", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|ES_NUMBER, x, y, w, h, id)
 }
 
+// createSignedEdit allows a leading minus (ES_NUMBER would block it); values are validated on commit.
+func (a *appState) createSignedEdit(text string, x, y, w, h, id int) uintptr {
+	return a.createControl("EDIT", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER, x, y, w, h, id)
+}
+
 func (a *appState) initTooltips() {
 	if a.tooltipHwnd != 0 {
 		return
@@ -3958,7 +4368,13 @@ func (a *appState) addTooltip(control uintptr, text string) {
 	a.tooltipHelp[control] = text
 }
 
-func (a *appState) tooltipForID(id int, text string) { a.addTooltip(a.controls[id], text) }
+func (a *appState) tooltipForID(id int, text string) {
+	h := a.controls[id]
+	if a.tooltipControls[id] != 0 {
+		h = a.tooltipControls[id]
+	}
+	a.addTooltip(h, text)
+}
 
 // updateHoverTooltip renders contextual help into the main window instead of a
 // separate top-most tooltip window. This keeps help capture-friendly and prevents
@@ -4007,43 +4423,132 @@ func (a *appState) updateScrollbars() {
 	if ok, _, _ := procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&rc))); ok == 0 {
 		return
 	}
+	minX, maxX, pageX := a.scrollRange(true)
+	minY, maxY, pageY := a.scrollRange(false)
+	a.scrollX = clampScrollPos(a.scrollX, minX, maxX)
+	a.scrollY = clampScrollPos(a.scrollY, minY, maxY)
+	showH := maxX > minX
+	showV := shouldShowVerticalScrollBar(minY, maxY)
+	a.placeScrollBar(a.verticalBar, verticalScrollBarBounds(rc), showV, minY, maxY, pageY, a.scrollY)
+	a.placeScrollBar(a.horizontalBar, horizontalScrollBarBounds(rc, showV), showH, minX, maxX, pageX, a.scrollX)
+	a.repositionScrolledChildren()
+}
+
+func (a *appState) placeScrollBar(bar *customScrollBar, bounds rect, visible bool, minPos, maxPos, page, pos int) {
+	if bar == nil {
+		return
+	}
+	if !visible {
+		minPos, maxPos, pos = 0, 0, 0
+	}
+	procSetWindowPos.Call(
+		bar.hwnd, HWND_TOP,
+		uintptr(bounds.Left), uintptr(bounds.Top),
+		uintptr(bounds.Right-bounds.Left), uintptr(bounds.Bottom-bounds.Top),
+		SWP_NOACTIVATE,
+	)
+	a.setScrollBarState(bar, minPos, maxPos, page, pos)
+	visibility := uintptr(SW_HIDE)
+	if visible {
+		visibility = SW_SHOW
+	}
+	procShowWindow.Call(bar.hwnd, visibility)
+}
+
+// scrollRange returns min, max and page size for one axis based on the current client size.
+func (a *appState) scrollRange(horizontal bool) (int, int, int) {
+	var rc rect
+	procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&rc)))
 	cw := int(rc.Right - rc.Left)
-	ch := int(rc.Bottom - rc.Top)
-	maxX := a.contentWidth - cw
-	maxY := a.contentHeight - ch
+	// Content ends above the status bar, so vertical limits match contentViewport.
+	ch := int(statusBarBounds(rc).Top - rc.Top)
+	// Reserve the scrollbar strip plus resize border so the scroll limits match contentViewport.
+	const barReserve = scrollBarWidth + windowResizeBorder
+	maxX := a.contentWidth - (cw - barReserve)
 	if maxX < 0 {
 		maxX = 0
 	}
-	if maxY < 0 {
-		maxY = 0
+	if horizontal {
+		return 0, maxX, cw - sidebarWidth - barReserve
 	}
-	if a.scrollX > maxX {
-		a.scrollX = maxX
-	}
-	if a.scrollY > maxY {
-		a.scrollY = maxY
-	}
-	procSetScrollRange.Call(a.hwnd, SB_HORZ, 0, uintptr(maxX), 1)
-	procSetScrollRange.Call(a.hwnd, SB_VERT, 0, uintptr(maxY), 1)
-	procSetScrollPos.Call(a.hwnd, SB_HORZ, uintptr(a.scrollX), 1)
-	procSetScrollPos.Call(a.hwnd, SB_VERT, uintptr(a.scrollY), 1)
-	showH, showV := uintptr(0), uintptr(0)
 	if maxX > 0 {
-		showH = 1
+		ch -= scrollBarWidth
 	}
-	if maxY > 0 {
-		showV = 1
+	minY, maxY := navigationScrollRange(a.cards, a.topNavigationID, ch)
+	if maxY < minY {
+		maxY = minY
 	}
-	procShowScrollBar.Call(a.hwnd, SB_HORZ, showH)
-	procShowScrollBar.Call(a.hwnd, SB_VERT, showV)
-	a.repositionScrolledChildren()
+	return minY, maxY, ch - fixedProfileBottom
+}
+func shouldShowVerticalScrollBar(minY, maxY int) bool {
+	return maxY > minY
+}
+
+func verticalScrollBarBounds(client rect) rect {
+	right := client.Right - windowResizeBorder
+	if right < client.Left {
+		right = client.Left
+	}
+	left := right - scrollBarWidth
+	if left < client.Left {
+		left = client.Left
+	}
+	top := int32(fixedProfileBottom + 2)
+	if top < client.Top {
+		top = client.Top
+	}
+	bottom := statusBarBounds(client).Top
+	if bottom < top {
+		bottom = top
+	}
+	return rect{
+		Left:   left,
+		Top:    top,
+		Right:  right,
+		Bottom: bottom,
+	}
 }
 
 func (a *appState) redrawAfterScroll() {
 	procRedrawWindow.Call(a.hwnd, 0, 0, RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN|RDW_UPDATENOW)
 }
 
+func (a *appState) redrawLiveThrustMeters() {
+	for _, card := range a.cards {
+		if !liveThrustMeterVisible(card, a.topNavigationID, a.selectedControlMode()) {
+			continue
+		}
+		dirty := liveThrustMeterDirtyRect(card, a.scrollX, a.scrollY)
+		procRedrawWindow.Call(a.hwnd, uintptr(unsafe.Pointer(&dirty)), 0, RDW_INVALIDATE|RDW_NOERASE|RDW_NOCHILDREN)
+		runtime.KeepAlive(&dirty)
+	}
+}
+
+func liveThrustMeterVisible(card uiCard, section int, profile string) bool {
+	return card.meter != "" && card.section == section &&
+		(card.profile == "" || strings.EqualFold(card.profile, profile))
+}
+
+func liveThrustMeterDirtyRect(card uiCard, scrollX, scrollY int) rect {
+	return rect{
+		Left:   card.bounds.Left + 20 - int32(scrollX),
+		Top:    card.bounds.Top + 148 - int32(scrollY),
+		Right:  card.bounds.Right - 20 - int32(scrollX),
+		Bottom: card.bounds.Top + 181 - int32(scrollY),
+	}
+}
+
 func (a *appState) repositionScrolledChildren() {
+	// Clip before moving and never copy old child pixels: a bit-copied move without the
+	// new region painted scrolled controls over the title/profile bar.
+	view := a.currentContentViewport()
+	dx, dy := int32(a.scrollX), int32(a.scrollY)
+	for h, r := range a.baseRects {
+		if h != 0 {
+			a.applyChildClip(h, rect{Left: r.Left - dx, Top: r.Top - dy, Right: r.Right - dx, Bottom: r.Bottom - dy}, view)
+		}
+	}
+	const moveFlags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
 	// Batch every child move into one layout transaction. Moving each child independently
 	// caused visible tearing/stale separator pixels while dragging the scrollbars.
 	hdwp, _, _ := procBeginDeferWindowPos.Call(uintptr(len(a.baseRects)))
@@ -4054,18 +4559,46 @@ func (a *appState) repositionScrolledChildren() {
 		x := int(r.Left) - a.scrollX
 		y := int(r.Top) - a.scrollY
 		if hdwp != 0 {
-			next, _, _ := procDeferWindowPos.Call(hdwp, h, 0, uintptr(x), uintptr(y), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
-			if next != 0 {
-				hdwp = next
+			// A failed DeferWindowPos invalidates the whole transaction (handle freed by the system).
+			hdwp, _, _ = procDeferWindowPos.Call(hdwp, h, 0, uintptr(x), uintptr(y), 0, 0, moveFlags)
+			if hdwp == 0 {
+				break
 			}
-		} else {
-			procSetWindowPos.Call(h, 0, uintptr(x), uintptr(y), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
 		}
 	}
 	if hdwp != 0 {
 		procEndDeferWindowPos.Call(hdwp)
+	} else {
+		for h, r := range a.baseRects {
+			if h == 0 {
+				continue
+			}
+			procSetWindowPos.Call(h, 0, uintptr(int(r.Left)-a.scrollX), uintptr(int(r.Top)-a.scrollY), 0, 0, moveFlags)
+		}
 	}
 	a.redrawAfterScroll()
+}
+
+func (a *appState) updateContentExtent() {
+	var width, height int32
+	for _, r := range a.baseRects {
+		if r.Right > width {
+			width = r.Right
+		}
+		if r.Bottom > height {
+			height = r.Bottom
+		}
+	}
+	for _, card := range a.cards {
+		if card.bounds.Right > width {
+			width = card.bounds.Right
+		}
+		if card.bounds.Bottom > height {
+			height = card.bounds.Bottom
+		}
+	}
+	a.contentWidth = int(width) + 20
+	a.contentHeight = int(height) + 20
 }
 
 func (a *appState) handleMouseWheel(wParam uintptr) {
@@ -4081,76 +4614,9 @@ func (a *appState) handleMouseWheel(wParam uintptr) {
 			steps = -1
 		}
 	}
-	var rc rect
-	procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&rc)))
-	limit := a.contentHeight - int(rc.Bottom-rc.Top)
-	if limit < 0 {
-		limit = 0
-	}
 	// Wheel-up scrolls toward the top; three 20px logical lines per wheel notch.
-	a.scrollY -= steps * 60
-	if a.scrollY < 0 {
-		a.scrollY = 0
-	}
-	if a.scrollY > limit {
-		a.scrollY = limit
-	}
-	procSetScrollPos.Call(a.hwnd, SB_VERT, uintptr(a.scrollY), 1)
-	a.repositionScrolledChildren()
+	a.scrollTo(false, a.scrollY-steps*scrollBarLineStep)
 }
-
-func (a *appState) handleScroll(horizontal bool, wParam uintptr) {
-	code := loword(wParam)
-	thumb := hiword(wParam)
-	var rc rect
-	procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&rc)))
-	page := int(rc.Bottom-rc.Top) - 40
-	pos := a.scrollY
-	limit := a.contentHeight - int(rc.Bottom-rc.Top)
-	bar := uintptr(SB_VERT)
-	if horizontal {
-		page = int(rc.Right-rc.Left) - 40
-		pos = a.scrollX
-		limit = a.contentWidth - int(rc.Right-rc.Left)
-		bar = SB_HORZ
-	}
-	if page < 40 {
-		page = 40
-	}
-	if limit < 0 {
-		limit = 0
-	}
-	switch code {
-	case SB_LINEUP:
-		pos -= 30
-	case SB_LINEDOWN:
-		pos += 30
-	case SB_PAGEUP:
-		pos -= page
-	case SB_PAGEDOWN:
-		pos += page
-	case SB_THUMBPOSITION, SB_THUMBTRACK:
-		pos = thumb
-	case SB_TOP:
-		pos = 0
-	case SB_BOTTOM:
-		pos = limit
-	}
-	if pos < 0 {
-		pos = 0
-	}
-	if pos > limit {
-		pos = limit
-	}
-	if horizontal {
-		a.scrollX = pos
-	} else {
-		a.scrollY = pos
-	}
-	procSetScrollPos.Call(a.hwnd, bar, uintptr(pos), 1)
-	a.repositionScrolledChildren()
-}
-
 func hidhidePaths() (cli, client string, installed bool) {
 	pf := os.Getenv("ProgramFiles")
 	if pf == "" {
@@ -4221,14 +4687,40 @@ func (a *appState) openHidHideSetup() {
 }
 
 func (a *appState) setGroupVisible(group []uintptr, visible bool) {
-	cmd := uintptr(SW_HIDE)
-	if visible {
-		cmd = SW_SHOW
-	}
 	for _, h := range group {
 		if h != 0 {
-			procShowWindow.Call(h, cmd)
+			if a.contextVisible == nil {
+				a.contextVisible = make(map[uintptr]bool)
+			}
+			a.contextVisible[h] = visible
+			a.setControlVisibility(h, visible && a.controlPageVisible(h))
 		}
+	}
+}
+
+func (a *appState) setControlVisibility(hwnd uintptr, visible bool) {
+	command := uintptr(SW_HIDE)
+	if visible {
+		command = SW_SHOW
+	}
+	procShowWindow.Call(hwnd, command)
+}
+
+func (a *appState) controlPageVisible(hwnd uintptr) bool {
+	if section, ok := a.controlSections[hwnd]; ok {
+		return section == a.topNavigationID
+	}
+	_, scrollable := a.baseRects[hwnd]
+	return !scrollable
+}
+
+func (a *appState) applyNavigationVisibility() {
+	for hwnd := range a.baseRects {
+		contextVisible, exists := a.contextVisible[hwnd]
+		if !exists {
+			contextVisible = true
+		}
+		a.setControlVisibility(hwnd, contextVisible && a.controlPageVisible(hwnd))
 	}
 }
 
@@ -4283,7 +4775,7 @@ func (a *appState) updateContextVisibility() {
 		{idTwistLeftAxisType, idTwistLeftOutputNegative},
 		{idTwistRightAxisType, idTwistRightOutputNegative},
 	} {
-		a.setGroupVisible([]uintptr{a.controls[twist.negativeID]}, comboIndex(twist.axisTypeID) == 1)
+		a.setGroupVisible([]uintptr{a.checkboxVisible[twist.negativeID]}, comboIndex(twist.axisTypeID) == 1)
 	}
 
 	onFootModes := []string{"Off", "Thumbstick -> WASD", "Buttons -> WASD"}
@@ -4341,71 +4833,387 @@ func (a *appState) createTwistUI(left bool, y, detailY int) {
 	}
 }
 
+func (a *appState) createSectionPanel(title string, x, y, w, h int) {
+	profile, meter := "", ""
+	switch title {
+	case "LEFT STICK":
+		profile, meter = "HOSAS", "left"
+	case "RIGHT STICK":
+		profile, meter = "HOSAS", "right"
+	case liveCardTitle:
+		profile = "HOSAS"
+	case "THROTTLE", "FLIGHT STICK":
+		profile = "HOTAS"
+	}
+	a.cards = append(a.cards, uiCard{
+		title:   title,
+		bounds:  rect{Left: int32(contentOffset + x), Top: int32(y), Right: int32(contentOffset + x + w), Bottom: int32(y + h)},
+		section: navigationSectionForTitle(title),
+		profile: profile,
+		curve:   title == "DRIVING RESPONSE",
+		meter:   meter,
+		live:    title == liveCardTitle,
+	})
+}
+
+func navigationSectionForTitle(title string) int {
+	switch title {
+	case "INPUT & DEVICE TOOLS":
+		return idSectionDevices
+	case "TWIST AXES", "RUDDER PEDALS":
+		return idSectionTwist
+	case "ON-FOOT CONTROLS":
+		return idSectionFoot
+	case "VIRTUAL CONTROLLER & LIVE MONITOR":
+		return idSectionMonitor
+	case "BUTTON MAPPINGS":
+		return idSectionBindings
+	default:
+		return idSectionSetup
+	}
+}
+
+func navigationScrollRange(cards []uiCard, section, clientHeight int) (int, int) {
+	if section == 0 {
+		return 0, 0
+	}
+	top, bottom, found := 0, 0, false
+	for _, card := range cards {
+		if card.section != section {
+			continue
+		}
+		if !found || int(card.bounds.Top) < top {
+			top = int(card.bounds.Top)
+		}
+		if !found || int(card.bounds.Bottom) > bottom {
+			bottom = int(card.bounds.Bottom)
+		}
+		found = true
+	}
+	if !found {
+		return 0, 0
+	}
+	minimum := 0
+	if section != idSectionSetup && section != idSectionDevices {
+		minimum = top - customTitleBarHeight - sectionNavInset
+		if minimum < 0 {
+			minimum = 0
+		}
+	}
+	maximum := bottom - clientHeight
+	if maximum < minimum {
+		maximum = minimum
+	}
+	return minimum, maximum
+}
+
+func fitSectionCardToControls(cards []uiCard, section int, controlSections map[uintptr]int, controlRects map[uintptr]rect, padding int32) {
+	var contentBottom int32
+	found := false
+	for hwnd, owner := range controlSections {
+		if owner != section {
+			continue
+		}
+		bounds, ok := controlRects[hwnd]
+		if ok && (!found || bounds.Bottom > contentBottom) {
+			contentBottom = bounds.Bottom
+			found = true
+		}
+	}
+	if !found {
+		return
+	}
+	for i := range cards {
+		if cards[i].section == section {
+			cards[i].bounds.Bottom = contentBottom + padding
+			return
+		}
+	}
+}
+
+func sectionContentYOffset(section int) int {
+	switch section {
+	case idSectionTwist:
+		return layoutShift + 16
+	case idSectionFoot:
+		return layoutShift + 42
+	case idSectionSetup:
+		return layoutShift - 430
+	case idSectionMonitor:
+		return layoutShift + 116
+	case idSectionBindings:
+		return layoutShift - 30
+	default:
+		return layoutShift
+	}
+}
+
+func (a *appState) createSectionPanels() {
+	a.createSectionPanel("LEFT STICK", 10, 40, 400, 200)
+	a.createSectionPanel("RIGHT STICK", 415, 40, 400, 200)
+	a.createSectionPanel(liveCardTitle, 820, 40, 300, 200)
+	a.createSectionPanel("THROTTLE", 10, 40, 400, 200)
+	a.createSectionPanel("FLIGHT STICK", 415, 40, 400, 200)
+	a.createSectionPanel("INPUT & DEVICE TOOLS", 10, sectionDevicesPanelY, 1110, 164)
+	a.createSectionPanel("TWIST AXES", 10, sectionTwistPanelY, 1110, 178)
+	a.createSectionPanel("RUDDER PEDALS", 10, sectionPedalPanelY, 1110, 110)
+	a.createSectionPanel("ON-FOOT CONTROLS", 10, sectionFootPanelY, 1110, 140)
+	a.createSectionPanel("DRIVING RESPONSE", 10, sectionDrivingPanelY, 1110, 280)
+	a.createSectionPanel("VIRTUAL CONTROLLER & LIVE MONITOR", 10, sectionMonitorPanelY, 1110, 350)
+	a.createSectionPanel("BUTTON MAPPINGS", 10, sectionBindingPanelY, 1110, 782)
+	a.updateContentExtent()
+}
+
+func (a *appState) createSidebar() {
+	a.sidebarDivider = a.createFixedControl("STATIC", "", WS_CHILD|WS_VISIBLE|SS_LEFT, sidebarWidth-1, customTitleBarHeight, 1, 900, 0)
+	a.sidebarTitle = a.createFixedControl("STATIC", "GALACTIC RACER\r\nBRIDGE", WS_CHILD|WS_VISIBLE|SS_LEFT, 16, customTitleBarHeight+20, sidebarWidth-32, 54, 0)
+	a.sidebarFooter = a.createFixedControl("STATIC", "NATIVE WINDOWS APP", WS_CHILD|WS_VISIBLE|SS_LEFT, 16, 0, sidebarWidth-32, 24, 0)
+	items := []struct {
+		id   int
+		text string
+	}{
+		{idSectionSetup, "Steuerung"},
+		{idSectionBindings, "Buttons"},
+		{idSectionTwist, "Twist-Achsen"},
+		{idSectionFoot, "Zu Fuss"},
+		{idSectionDevices, "Eingabe & HidHide"},
+		{idSectionMonitor, "Live Monitor"},
+	}
+	for i, item := range items {
+		h := a.createFixedControl("BUTTON", item.text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, 16, sidebarNavigationY(i), 168, sidebarNavigationHeight, item.id)
+		a.sidebarNavigation = append(a.sidebarNavigation, h)
+	}
+}
+
+func (a *appState) createCaptionButtons() {
+	a.createFixedControl("BUTTON", "—", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, 0, 6, captionButtonWidth, captionButtonHeight, idWindowMinimize)
+	a.createFixedControl("BUTTON", "□", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, 0, 6, captionButtonWidth, captionButtonHeight, idWindowMaximize)
+	a.createFixedControl("BUTTON", "×", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, 0, 6, captionButtonWidth, captionButtonHeight, idWindowClose)
+}
+
+func (a *appState) updateCaptionButtons(sizeState uintptr) {
+	if maximize := a.controls[idWindowMaximize]; maximize != 0 {
+		if sizeState == SIZE_MAXIMIZED {
+			setText(maximize, "❐")
+		} else if sizeState == SIZE_RESTORED {
+			setText(maximize, "□")
+		}
+	}
+}
+
+func (a *appState) resizeCaptionButtons() {
+	if a.hwnd == 0 {
+		return
+	}
+	var client rect
+	if ok, _, _ := procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
+		return
+	}
+	right := int(client.Right) - captionButtonInset
+	for _, id := range []int{idWindowClose, idWindowMaximize, idWindowMinimize} {
+		h := a.controls[id]
+		if h == 0 {
+			continue
+		}
+		right -= captionButtonWidth
+		procSetWindowPos.Call(h, HWND_TOP, uintptr(right), 6, captionButtonWidth, captionButtonHeight, SWP_NOACTIVATE)
+	}
+}
+
+const (
+	sidebarNavigationTop    = customTitleBarHeight + 86
+	sidebarNavigationStep   = 46
+	sidebarNavigationHeight = 36
+)
+
+func sidebarNavigationY(index int) int {
+	return sidebarNavigationTop + index*sidebarNavigationStep
+}
+
+// sidebarNavigationFits reports whether navigation entry index ends above bottom.
+func sidebarNavigationFits(index, bottom int) bool {
+	return sidebarNavigationY(index)+sidebarNavigationHeight <= bottom
+}
+
+func (a *appState) resizeSidebar() {
+	if a.hwnd == 0 || a.sidebarTitle == 0 {
+		return
+	}
+	var client rect
+	if ok, _, _ := procGetClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
+		return
+	}
+	top := customTitleBarHeight
+	height := int(statusBarBounds(client).Top) - top
+	if height < 0 {
+		height = 0
+	}
+	procSetWindowPos.Call(a.sidebarDivider, HWND_TOP, sidebarWidth-1, uintptr(top), 1, uintptr(height), SWP_NOACTIVATE)
+	procSetWindowPos.Call(a.sidebarTitle, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE)
+	for i, h := range a.sidebarNavigation {
+		// Child windows are not clipped by the parent paint, so hide entries that would cover the status bar.
+		visibility := uintptr(SWP_SHOWWINDOW)
+		if !sidebarNavigationFits(i, top+height) {
+			visibility = SWP_HIDEWINDOW
+		}
+		procSetWindowPos.Call(h, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|visibility)
+	}
+	if a.sidebarFooter != 0 {
+		footerY := top + height - 32
+		if footerY < 0 {
+			footerY = 0
+		}
+		procSetWindowPos.Call(a.sidebarFooter, HWND_TOP, 16, uintptr(footerY), 168, 24, SWP_NOACTIVATE)
+	}
+}
+
+// valueSlider couples a numeric edit with a native trackbar (HOSAS driving response).
+type valueSlider struct {
+	editID    int
+	min, max  int
+	name      string
+	normalize func(int) int
+	hwnd      uintptr
+}
+
+func (a *appState) createValueSlider(x, y, id int, spec valueSlider, initial int) uintptr {
+	h := a.createControl("msctls_trackbar32", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP, x, y, 170, 28, id)
+	if h == 0 {
+		panic("Could not create native " + spec.name + " trackbar.")
+	}
+	procSendMessageW.Call(h, TBM_SETRANGEMIN, 0, uintptr(spec.min))
+	procSendMessageW.Call(h, TBM_SETRANGEMAX, 1, uintptr(spec.max))
+	procSendMessageW.Call(h, TBM_SETPOS, 1, uintptr(initial))
+	spec.hwnd = h
+	a.valueSliders = append(a.valueSliders, spec)
+	return h
+}
+
+func (a *appState) valueSliderForHandle(hwnd uintptr) (valueSlider, bool) {
+	for _, s := range a.valueSliders {
+		if hwnd != 0 && s.hwnd == hwnd {
+			return s, true
+		}
+	}
+	return valueSlider{}, false
+}
+
+func (a *appState) valueSliderForEdit(id int) (valueSlider, bool) {
+	for _, s := range a.valueSliders {
+		if s.editID == id {
+			return s, true
+		}
+	}
+	return valueSlider{}, false
+}
+
+func (a *appState) setValueSlider(editID, value int) {
+	if s, ok := a.valueSliderForEdit(editID); ok {
+		procSendMessageW.Call(s.hwnd, TBM_SETPOS, 1, uintptr(value))
+	}
+}
+
+func (a *appState) handleValueSlider(spec valueSlider, code int) {
+	value, _, _ := procSendMessageW.Call(spec.hwnd, TBM_GETPOS, 0, 0)
+	n := int(int32(value))
+	if n < spec.min {
+		n = spec.min
+	}
+	if n > spec.max {
+		n = spec.max
+	}
+	a.sliderChanging = true
+	setText(a.controls[spec.editID], strconv.Itoa(n))
+	a.sliderChanging = false
+	a.syncConfigFromUI()
+	procRedrawWindow.Call(a.hwnd, 0, 0, RDW_INVALIDATE)
+	if code == TB_ENDTRACK {
+		saveConfig()
+	}
+}
+
+func (a *appState) navigateToSection(id int) {
+	a.closeCombo(false)
+	a.topNavigationID = id
+	a.scrollX = 0
+	a.scrollY, _ = navigationScrollRange(a.cards, id, 0)
+	a.applyNavigationVisibility()
+	a.raiseLiveMonitorDots()
+	a.updateScrollbars()
+	a.redrawAfterScroll()
+}
+
 func (a *appState) createUI() {
 	f, _, _ := procGetStockObject.Call(DEFAULT_GUI_FONT)
 	a.font = f
 
-	a.createLabel("Flight controls -> Xbox 360 bridge for Galactic Racer", 20, 15, 650, 24)
-	a.createLabel("by JaffaQuake and Mars", 820, 15, 260, 24)
-	a.createLabel("Control mode", 830, 50, 95, 22)
-	a.createCombo(925, 44, 185, 160, idControlMode)
-	a.createLabel("Input API", 830, 80, 90, 22)
-	a.createCombo(925, 74, 185, 140, idInputBackend)
-	a.createButton("Refresh devices", 830, 104, 120, 28, idRefresh)
-	a.createButton("HidHide Setup", 960, 104, 150, 28, idHidHideSetup)
-	a.createControl("STATIC", "HidHide: checking...", WS_CHILD|WS_VISIBLE|SS_LEFT, 830, 134, 280, 18, idHidHideStatus)
+	a.createSidebar()
+	a.createCaptionButtons()
+	a.verticalBar = a.createCustomScrollBar(false)
+	a.horizontalBar = a.createCustomScrollBar(true)
+	a.activeControlSection = idSectionSetup
+	profileLabel := a.createLabel("CONTROL PROFILE", 20, 12, 140, 24)
+	modeCombo := a.createCombo(830, 44, 185, 160, idControlMode)
+	procShowWindow.Call(modeCombo, SW_HIDE)
+	delete(a.baseRects, modeCombo)
+	hosasProfileButton := a.createButton("HOSAS / Podracer", 165, 8, 154, 30, idSelectHOSAS)
+	hotasProfileButton := a.createButton("HOTAS / Traditional", 324, 8, 170, 30, idSelectHOTAS)
+	a.activeControlSection = idSectionDevices
+	a.createLabel("Input API", 20, 80, 90, 22)
+	a.createCombo(115, 74, 185, 140, idInputBackend)
+	a.createButton("Refresh devices", 20, 107, 120, 28, idRefresh)
+	a.createButton("HidHide Setup", 150, 107, 150, 28, idHidHideSetup)
+	a.createControl("STATIC", "HidHide: checking...", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 136, 280, 18, idHidHideStatus)
 
+	a.activeControlSection = idSectionSetup
 	// Podracer Style controls. Hidden automatically when Traditional HOTAS is selected.
 	a.controlHOSASGroup = append(a.controlHOSASGroup,
-		a.createLabel("HOSAS sticks", 20, 48, 160, 20),
-		a.createLabel("Device", 155, 48, 240, 20),
-		a.createLabel("Forward axis", 405, 48, 110, 20),
-		a.createLabel("Left stick", 20, 76, 120, 24),
-		a.createCombo(150, 72, 240, 260, idLeftDevice),
-		a.createCombo(405, 72, 85, 220, idLeftAxis),
-		a.createCheck("Invert", 500, 73, 75, 24, idLeftInvert),
-		a.createCheck("Throttle axis", 580, 73, 115, 24, idLeftThrottleMode),
-		a.createButton("Detect Left", 705, 70, 110, 28, idDetectLeft),
-		a.createLabel("Right stick", 20, 110, 120, 24),
-		a.createCombo(150, 106, 240, 260, idRightDevice),
-		a.createCombo(405, 106, 85, 220, idRightAxis),
-		a.createCheck("Invert", 500, 107, 75, 24, idRightInvert),
-		a.createCheck("Throttle axis", 580, 107, 115, 24, idRightThrottleMode),
-		a.createButton("Detect Right", 705, 104, 110, 28, idDetectRight))
+		a.createLabel("Device", 30, 72, 150, 20),
+		a.createLabel("Forward axis", 220, 72, 100, 20),
+		a.createCombo(30, 92, 180, 260, idLeftDevice),
+		a.createCombo(220, 92, 65, 220, idLeftAxis),
+		a.createCheck("Invert", 294, 93, 74, 24, idLeftInvert),
+		a.createCheck("Throttle axis", 30, 122, 112, 24, idLeftThrottleMode),
+		a.createButton("Detect Left", 154, 119, 105, 28, idDetectLeft),
+		a.createLabel("Device", 435, 72, 150, 20),
+		a.createLabel("Forward axis", 625, 72, 100, 20),
+		a.createCombo(435, 92, 180, 260, idRightDevice),
+		a.createCombo(625, 92, 65, 220, idRightAxis),
+		a.createCheck("Invert", 699, 93, 74, 24, idRightInvert),
+		a.createCheck("Throttle axis", 435, 122, 112, 24, idRightThrottleMode),
+		a.createButton("Detect Right", 559, 119, 105, 28, idDetectRight))
 
 	// Traditional HOTAS controls occupy the same space as the Podracer rows. Throttle behavior is configurable;
 	// the selected flight stick maps directly to the virtual Xbox left thumbstick.
 	a.controlHOTASGroup = append(a.controlHOTASGroup,
-		a.createLabel("HOTAS", 20, 48, 100, 20),
-		a.createLabel("Device", 155, 48, 220, 20),
-		a.createLabel("Throttle / X axis", 405, 48, 100, 20),
-		a.createLabel("Y axis", 500, 48, 70, 20),
-		a.createLabel("Throttle", 20, 76, 120, 24),
-		a.createCombo(150, 72, 240, 260, idHotasThrottleDevice),
-		a.createCombo(405, 72, 85, 220, idHotasThrottleAxis),
-		a.createCheck("Invert", 500, 73, 75, 24, idHotasThrottleInvert),
-		a.createLabel("Brake behavior", 580, 48, 105, 20),
-		a.createCombo(580, 72, 150, 160, idHotasBrakeBehavior),
-		a.createLabel("Flight stick", 20, 110, 120, 24),
-		a.createCombo(150, 106, 240, 260, idHotasStickDevice),
-		a.createCombo(405, 106, 85, 220, idHotasStickXAxis),
-		a.createCombo(500, 106, 85, 220, idHotasStickYAxis),
-		a.createCheck("Invert X", 590, 107, 78, 24, idHotasStickInvertX),
-		a.createCheck("Invert Y", 670, 107, 78, 24, idHotasStickInvertY))
+		a.createLabel("Throttle device", 30, 72, 150, 20),
+		a.createLabel("Axis", 220, 72, 55, 20),
+		a.createCombo(30, 92, 180, 260, idHotasThrottleDevice),
+		a.createCombo(220, 92, 65, 220, idHotasThrottleAxis),
+		a.createCheck("Invert", 294, 93, 74, 24, idHotasThrottleInvert),
+		a.createCombo(30, 124, 165, 160, idHotasBrakeBehavior),
+		a.createLabel("Flight stick device", 435, 72, 175, 20),
+		a.createLabel("X axis", 625, 72, 55, 20),
+		a.createLabel("Y axis", 700, 72, 55, 20),
+		a.createCombo(435, 92, 180, 260, idHotasStickDevice),
+		a.createCombo(625, 92, 65, 220, idHotasStickXAxis),
+		a.createCombo(700, 92, 65, 220, idHotasStickYAxis),
+		a.createCheck("Invert X", 435, 124, 80, 24, idHotasStickInvertX),
+		a.createCheck("Invert Y", 525, 124, 80, 24, idHotasStickInvertY))
 
 	a.hotasBrakeDigitalGroup = append(a.hotasBrakeDigitalGroup,
-		a.createLabel("Idle %", 735, 76, 48, 22),
-		a.createEdit("5", 783, 72, 40, 25, idHotasBrakeThreshold))
+		a.createLabel("Idle %", 200, 127, 48, 22),
+		a.createEdit("5", 250, 124, 40, 25, idHotasBrakeThreshold))
 	a.hotasBrakeAnalogGroup = append(a.hotasBrakeAnalogGroup,
-		a.createLabel("Zone %", 735, 76, 48, 22),
-		a.createEdit("20", 783, 72, 40, 25, idHotasBrakeZone))
+		a.createLabel("Zone %", 200, 127, 48, 22),
+		a.createEdit("20", 250, 124, 40, 25, idHotasBrakeZone))
 	for _, h := range a.hotasBrakeDigitalGroup {
 		a.controlHOTASGroup = append(a.controlHOTASGroup, h)
 	}
 	for _, h := range a.hotasBrakeAnalogGroup {
 		a.controlHOTASGroup = append(a.controlHOTASGroup, h)
 	}
-	a.createLabel("Rudder pedals", 20, 154, 130, 20)
+	a.activeControlSection = idSectionTwist
 	a.createLabel("Pedal device", 20, 182, 115, 24)
 	a.createCombo(150, 178, 240, 260, idPedalDevice)
 	a.createCombo(405, 178, 85, 220, idPedalAxis)
@@ -4434,6 +5242,7 @@ func (a *appState) createUI() {
 		a.createEdit("20", 650, 212, 55, 25, idPedalKeyThreshold),
 		a.createLabel("%", 710, 216, 25, 22))
 
+	a.activeControlSection = idSectionFoot
 	// On-foot controls can use either an analog thumbstick (DirectInput) or learned buttons/hats.
 	a.createLabel("On-foot controls", 20, 264, 120, 22)
 	a.createLabel("Mode", 145, 264, 45, 22)
@@ -4460,14 +5269,34 @@ func (a *appState) createUI() {
 		a.onFootButtonGroup = append(a.onFootButtonGroup, indicator, label, learn, clear)
 	}
 
-	a.createLabel("Driving", 20, 392, 100, 20)
+	a.activeControlSection = idSectionSetup
 	a.createLabel("Deadzone", 20, 420, 80, 22)
 	a.createEdit("6", 100, 416, 50, 25, idDeadzone)
 	a.createLabel("%", 155, 420, 25, 22)
-	a.hosasDrivingGroup = append(a.hosasDrivingGroup,
-		a.createCheck("Hybrid preserve thrust", 200, 416, 190, 26, idPreserve),
-		a.createLabel("Forward steering keeps thrust; pulling one stick behind center progressively scrubs it.", 400, 420, 555, 30))
+	// Shared HOSAS driving response applies to both sticks, so it lives in Driving Response.
+	a.controlHOSASGroup = append(a.controlHOSASGroup,
+		a.createLabel("Max throttle", 20, 459, 90, 22),
+		a.createEdit("100", 100, 455, 50, 25, idThrottleScale),
+		a.createLabel("%", 155, 459, 25, 22),
+		a.createValueSlider(180, 453, idThrottleScaleSlider, valueSlider{editID: idThrottleScale, min: 10, max: 200, name: "max throttle", normalize: normalizeScalePercent}, 100),
+		a.createLabel("Throttle curve", 20, 494, 80, 22),
+		a.createSignedEdit("0", 100, 490, 50, 25, idThrottleExpo),
+		a.createLabel("%", 155, 494, 25, 22),
+		a.createValueSlider(180, 488, idThrottleExpoSlider, valueSlider{editID: idThrottleExpo, min: -100, max: 100, name: "throttle curve", normalize: clampExpoPercent}, 0),
+		a.createLabel("Max steering", 20, 529, 90, 22),
+		a.createEdit("100", 100, 525, 50, 25, idSteerScale),
+		a.createLabel("%", 155, 529, 25, 22),
+		a.createValueSlider(180, 523, idSteerScaleSlider, valueSlider{editID: idSteerScale, min: 50, max: 100, name: "max steering", normalize: normalizeSteerScalePercent}, 100),
+		a.createLabel("Steer curve 1", 20, 564, 80, 22),
+		a.createSignedEdit("0", 100, 560, 50, 25, idSteerExpo),
+		a.createLabel("%", 155, 564, 25, 22),
+		a.createValueSlider(180, 558, idSteerExpoSlider, valueSlider{editID: idSteerExpo, min: -100, max: 100, name: "steer curve 1", normalize: clampExpoPercent}, 0),
+		a.createLabel("Steer curve 2", 20, 599, 80, 22),
+		a.createSignedEdit("0", 100, 595, 50, 25, idSteerExpo2),
+		a.createLabel("%", 155, 599, 25, 22),
+		a.createValueSlider(180, 593, idSteerExpo2Slider, valueSlider{editID: idSteerExpo2, min: -100, max: 100, name: "steer curve 2", normalize: clampExpoPercent}, 0))
 
+	a.activeControlSection = idSectionMonitor
 	a.createButton("Initiate Xbox Controller", 20, 460, 180, 32, idStart)
 	a.createButton("Test Xbox A", 210, 460, 105, 32, idTestA)
 	a.createButton("Camera Left", 325, 460, 105, 32, idTestCamLeft)
@@ -4476,6 +5305,7 @@ func (a *appState) createUI() {
 	a.createLabel("Polling rate", 700, 467, 85, 22)
 	a.createCombo(785, 460, 105, 180, idPollingRate)
 	a.createLabel("Hz", 895, 467, 30, 22)
+	a.createButton("Show overlay", 935, 460, 150, 32, idShowOverlay)
 
 	a.createLabel("LIVE INPUT MONITOR", 20, 508, 170, 20)
 	a.createControl("STATIC", "Waiting for devices...", WS_CHILD|WS_VISIBLE|SS_LEFT, 20, 533, 545, 56, idMonitor)
@@ -4494,20 +5324,21 @@ func (a *appState) createUI() {
 	a.createLabel("DRIVE / STEER", outputBoxX+9, 506, 120, 20)
 	for _, x := range []int{leftBoxX, rightBoxX, outputBoxX} {
 		a.createControl("STATIC", "", WS_CHILD|WS_VISIBLE|WS_BORDER, x, boxY, boxSize, boxSize, 0)
-		a.createControl("STATIC", "", WS_CHILD|WS_VISIBLE|WS_BORDER, x+boxSize/2, boxY, 1, boxSize, 0)
-		a.createControl("STATIC", "", WS_CHILD|WS_VISIBLE|WS_BORDER, x, boxY+boxSize/2, boxSize, 1, 0)
+		a.createControl("STATIC", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_CLIPSIBLINGS, x+boxSize/2, boxY, 1, boxSize, 0)
+		a.createControl("STATIC", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_CLIPSIBLINGS, x, boxY+boxSize/2, boxSize, 1, 0)
 		a.createLabel("F", x+boxSize/2-4, boxY-18, 15, 18)
 		a.createLabel("B", x+boxSize/2-4, boxY+boxSize+2, 15, 18)
 		a.createLabel("L", x-14, boxY+boxSize/2-8, 14, 18)
 		a.createLabel("R", x+boxSize+3, boxY+boxSize/2-8, 14, 18)
 	}
-	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, leftBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idLeftDot)
-	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, rightBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idRightDot)
-	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, outputBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idDriveSteerDot)
+	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_OWNERDRAW, leftBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idLeftDot)
+	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_OWNERDRAW, rightBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idRightDot)
+	a.createControl("BUTTON", "", WS_CHILD|WS_VISIBLE|BS_OWNERDRAW, outputBoxX+boxSize/2-6, boxY+boxSize/2-6, 12, 12, idDriveSteerDot)
 	a.createControl("STATIC", "Side +0.00  F +0.00", WS_CHILD|WS_VISIBLE|SS_LEFT, leftBoxX, boxY+boxSize+22, 155, 20, idLeftVectorText)
 	a.createControl("STATIC", "Side +0.00  F +0.00", WS_CHILD|WS_VISIBLE|SS_LEFT, rightBoxX, boxY+boxSize+22, 155, 20, idRightVectorText)
 	a.createControl("STATIC", "Drive +0.00 Neutral\r\nSteer +0.00 Straight", WS_CHILD|WS_VISIBLE|SS_LEFT, outputBoxX-5, boxY+boxSize+20, 185, 38, idDriveSteerVectorText)
 
+	a.activeControlSection = idSectionBindings
 	// v1.98.1: preserve two mapping columns, but show full physical assignments.
 	// v1.98 had a 148x22 label and 37px rows, causing VKB names to wrap
 	// into clipped second lines. Each row now reserves two text lines and
@@ -4545,27 +5376,52 @@ func (a *appState) createUI() {
 		drawBinding(i, x, y)
 	}
 
-	// Keep the existing downstream 210px layout shift and use the newly
-	// available space to place Twist Axis between the HOSAS/HOTAS rows and
-	// Rudder Pedals. v1.98.2 lowers only the twist rows by 22 logical px,
-	// balancing the space above and below without moving existing controls.
+	// Reserve separate rows for the stick cards, twist axes, and lower settings.
 	// The layout engine uses baseRects to handle scrolling and window resizing.
 	for h, r := range a.baseRects {
-		if r.Top < 154 {
+		if r.Top < 170 {
 			continue
 		}
-		r.Top += 210
-		r.Bottom += 210
+		section, ok := a.controlSections[h]
+		if !ok {
+			panic("scrollable control has no navigation section")
+		}
+		offset := sectionContentYOffset(section)
+		r.Top += int32(offset)
+		r.Bottom += int32(offset)
 		a.baseRects[h] = r
 		procSetWindowPos.Call(h, 0, uintptr(r.Left), uintptr(r.Top), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
 	}
 	// Centered/Lever ranges are already explained by the Axis Type tooltip.
-	a.createLabel("TWIST AXIS", 20, 178, 180, 22)
-	a.createTwistUI(true, 207, 244)
-	a.createTwistUI(false, 285, 322)
+	a.activeControlSection = idSectionTwist
+	a.createTwistUI(true, twistLeftRowY, twistLeftDetailY)
+	a.createTwistUI(false, twistRightRowY, twistRightDetailY)
+	a.createSectionPanels()
+	for h, r := range a.baseRects {
+		r.Top += customTitleBarHeight
+		r.Bottom += customTitleBarHeight
+		a.baseRects[h] = r
+		procSetWindowPos.Call(h, 0, uintptr(r.Left), uintptr(r.Top), 0, 0, SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)
+	}
+	for _, hwnd := range []uintptr{profileLabel, hosasProfileButton, hotasProfileButton} {
+		if bounds, ok := a.baseRects[hwnd]; ok {
+			delete(a.baseRects, hwnd)
+			delete(a.controlSections, hwnd)
+			procSetWindowPos.Call(hwnd, HWND_TOP, uintptr(bounds.Left), uintptr(bounds.Top), uintptr(bounds.Right-bounds.Left), uintptr(bounds.Bottom-bounds.Top), SWP_NOACTIVATE)
+		}
+	}
+	for i := range a.cards {
+		a.cards[i].bounds.Top += customTitleBarHeight
+		a.cards[i].bounds.Bottom += customTitleBarHeight
+	}
+	fitSectionCardToControls(a.cards, idSectionBindings, a.controlSections, a.baseRects, 16)
+	a.activeControlSection = 0
+	a.updateContentExtent()
 
 	// Hover help.
 	a.tooltipForID(idControlMode, "Podracer Style uses two flight controls as a differential pair: both contribute to thrust and their difference controls steering. Traditional HOTAS uses a dedicated throttle for acceleration/braking behavior and a flight stick for conventional Xbox left-stick steering.")
+	a.tooltipForID(idSelectHOSAS, "Select the dual-stick Podracer profile. The stick cards below show the shared max-throttle setting.")
+	a.tooltipForID(idSelectHOTAS, "Select the traditional throttle-and-flight-stick profile. HOSAS-only thrust controls are hidden; all HOTAS brake options remain available.")
 	a.tooltipForID(idInputBackend, "Axis input backend. Auto uses DirectInput first and falls back to WinMM when possible. DirectInput exposes X/Y/Z, Rx/Ry/Rz and Slider 1/2. WinMM keeps the legacy six-axis path and is isolated in a helper process so problematic legacy joystick drivers cannot take down the main app. Learned buttons/hats use the selected Input API. Existing WinMM bindings remain WinMM; DirectInput bindings are stored separately by device GUID.")
 	a.tooltipForID(idHidHideSetup, "Optional double-input protection. If HidHide is installed, this registers this mapper on HidHide's allowlist and opens the official configuration client so you can hide the physical controllers from games. v1.96 does not automatically choose devices to hide.")
 	a.tooltipForID(idHotasThrottleDevice, "HOTAS throttle device. Its selected axis is converted to Xbox Right Trigger from 0% to 100% forward thrust only.")
@@ -4580,6 +5436,7 @@ func (a *appState) createUI() {
 	a.tooltipForID(idDetectRight, "Move the RIGHT flight stick forward after clicking. The app identifies the device, forward/back axis, and inversion automatically.")
 	a.tooltipForID(idLeftThrottleMode, "Treat the selected LEFT HOSAS axis as a throttle lever: 0% = -1, 50% = neutral (0), 100% = +1. Useful for non-spring-centered throttle hardware.")
 	a.tooltipForID(idRightThrottleMode, "Treat the selected RIGHT HOSAS axis as a throttle lever: 0% = -1, 50% = neutral (0), 100% = +1. Useful for non-spring-centered throttle hardware.")
+	a.tooltipForID(idThrottleScaleSlider, "Max throttle: both sticks are summed. Up to 100 it caps thrust (one stick full + other centered = this value). Above 100 the sum is amplified so full thrust stays while steering with the other stick back (200: left full + right half back = 100%). Full forward + full back = 0.")
 	a.tooltipForID(idRefresh, "Rescan Windows for connected controller devices and restart the DirectInput device list.")
 	a.tooltipForID(idDetectWASD, "DirectInput thumbstick detection: push the small stick RIGHT, return to center, then push it FORWARD. This reads the same X/Y Rotation path that joy.cpl uses.")
 	a.tooltipForID(idOnFootMode, "Choose how on-foot W/A/S/D is produced: analog thumbstick, learned stick buttons/hats, or off.")
@@ -4587,8 +5444,17 @@ func (a *appState) createUI() {
 	a.tooltipForID(idTestA, "Send a short Xbox A-button pulse through the virtual controller. Initiate Xbox Controller must be active.")
 	a.tooltipForID(idTestCamLeft, "Force virtual Xbox Right Stick X fully left briefly. Useful for camera-output diagnostics.")
 	a.tooltipForID(idTestCamRight, "Force virtual Xbox Right Stick X fully right briefly. Useful for camera-output diagnostics.")
+	a.tooltipForID(idShowOverlay, "Minimize this window and show Left Stick, Right Stick and Drive/Steer as an always-on-top overlay at the top right of the monitor. Close it with X to return. Works over borderless/windowed games, not exclusive fullscreen.")
 	a.tooltipForID(idSave, "Save the current device, axis, deadzone, polling-rate, twist, pedal, on-foot, and learned-button settings.")
-	a.tooltipForID(idPreserve, "Hybrid thrust: forward-stick steering keeps full thrust; pulling one stick behind center progressively scrubs thrust.")
+	a.tooltipForID(idThrottleScale, "Max throttle %. Drive = (left + right) x this value, capped at 100% output. Example 80: left full forward + right centered = 80%. Example 150: left full + right 1/3 back = 100%. Range 10-200, default 100.")
+	a.tooltipForID(idThrottleExpo, "Throttle curve (expo) %. 0 = linear; positive = finer control at low throttle, negative = more aggressive response at low throttle. Full stick sum still reaches max throttle; reverse is symmetric. Range -100 to 100, default 0.")
+	a.tooltipForID(idThrottleExpoSlider, "Throttle curve: -100 = most aggressive around zero, 0 = linear, 100 = strongest softening around zero throttle. Full stick sum always reaches max throttle.")
+	a.tooltipForID(idSteerScale, "Max steering = steering with one stick full and the other centered. Counter-steering with the second stick adds the rest up to full lock (costs speed). 100 = one stick gives full lock; 50 = full lock needs full counter-steer. Range 50-100, default 100.")
+	a.tooltipForID(idSteerScaleSlider, "Max steering 50-100: how much counter-steer you need for full lock. 100 = one stick is enough, 50 = full counter-steer needed.")
+	a.tooltipForID(idSteerExpo, "Steer curve 1 (expo) %: one-stick segment from center to max steering. 0 = linear; positive = soft start, negative = aggressive start. Range -100 to 100, default 0.")
+	a.tooltipForID(idSteerExpoSlider, "Steer curve 1: -100 = aggressive, 0 = linear, 100 = soft start. Ends exactly at max steering.")
+	a.tooltipForID(idSteerExpo2, "Steer curve 2 (expo) %: counter-stick segment from max steering to 100%. 0 = linear; positive = counter-stick bites late, negative = counter-stick adds steering early. Range -100 to 100, default 0.")
+	a.tooltipForID(idSteerExpo2Slider, "Steer curve 2: -100 = aggressive, 0 = linear, 100 = soft. Full counter-steer always reaches 100%.")
 	a.tooltipForID(idPollingRate, "How often the controller loop requests fresh input/output updates. Higher rates reduce interval but use more CPU; hardware/Windows update rates may still be lower.")
 	for _, left := range []bool{true, false} {
 		ids := auxiliaryIDs(left)
@@ -4642,9 +5508,16 @@ func (a *appState) createUI() {
 	a.populateCombos()
 	a.applyConfigToUI()
 	a.updateBindingLabels()
+	a.resizeCaptionButtons()
+	a.resizeSidebar()
 	a.uiReady = true
 	a.updateContextVisibility()
+	a.liveCardLast = a.overlaySnapshotNow()
+	a.navigateToSection(idSectionSetup)
 	procSetTimer.Call(a.hwnd, 1, 100, 0)
+	if t, _, e := procSetTimer.Call(a.hwnd, liveCardTimerID, overlayRefreshMs, 0); t == 0 {
+		a.postStatus(fmt.Sprintf("Live output unavailable: refresh timer failed: %v", e))
+	}
 }
 
 func (a *appState) populateCombos() {
@@ -4752,6 +5625,8 @@ func (a *appState) populateCombos() {
 }
 
 func (a *appState) applyConfigToUI() {
+	a.applyingUI = true
+	defer func() { a.applyingUI = false }()
 	a.cfgMu.RLock()
 	c := a.cfg
 	a.cfgMu.RUnlock()
@@ -4835,6 +5710,21 @@ func (a *appState) applyConfigToUI() {
 	comboSetIndex(idPedalLeftKey, keyOptionIndex(c.PedalLeftKey))
 	comboSetIndex(idPedalRightKey, keyOptionIndex(c.PedalRightKey))
 	setText(a.controls[idDeadzone], strconv.Itoa(c.Deadzone))
+	throttleScale := normalizeScalePercent(c.ThrottleScale)
+	setText(a.controls[idThrottleScale], strconv.Itoa(throttleScale))
+	a.setValueSlider(idThrottleScale, throttleScale)
+	throttleExpo := normalizeExpoPercent(c.ThrottleExpo)
+	setText(a.controls[idThrottleExpo], strconv.Itoa(throttleExpo))
+	a.setValueSlider(idThrottleExpo, throttleExpo)
+	steerScale := normalizeSteerScalePercent(c.SteerScale)
+	setText(a.controls[idSteerScale], strconv.Itoa(steerScale))
+	a.setValueSlider(idSteerScale, steerScale)
+	steerExpo := normalizeExpoPercent(c.SteerExpo)
+	setText(a.controls[idSteerExpo], strconv.Itoa(steerExpo))
+	a.setValueSlider(idSteerExpo, steerExpo)
+	steerExpo2 := normalizeExpoPercent(c.SteerExpo2)
+	setText(a.controls[idSteerExpo2], strconv.Itoa(steerExpo2))
+	a.setValueSlider(idSteerExpo2, steerExpo2)
 	setText(a.controls[idPedalStrength], strconv.Itoa(c.PedalSteerStrength))
 	setText(a.controls[idCameraSensitivity], strconv.Itoa(c.CameraSensitivity))
 	setText(a.controls[idCameraDeadzone], strconv.Itoa(c.CameraDeadzone))
@@ -4848,7 +5738,6 @@ func (a *appState) applyConfigToUI() {
 		}
 	}
 	comboSetIndex(idPollingRate, pidx)
-	setChecked(a.controls[idPreserve], c.PreserveThrust)
 	if a.uiReady {
 		a.updateContextVisibility()
 	}
@@ -5118,6 +6007,21 @@ func (a *appState) syncConfigFromUI() {
 		}
 		c.PedalKeyThreshold = n
 	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idThrottleScale]))); e == nil {
+		c.ThrottleScale = normalizeScalePercent(n)
+	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idThrottleExpo]))); e == nil {
+		c.ThrottleExpo = clampExpoPercent(n)
+	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idSteerScale]))); e == nil {
+		c.SteerScale = normalizeSteerScalePercent(n)
+	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idSteerExpo]))); e == nil {
+		c.SteerExpo = clampExpoPercent(n)
+	}
+	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idSteerExpo2]))); e == nil {
+		c.SteerExpo2 = clampExpoPercent(n)
+	}
 	if n, e := strconv.Atoi(strings.TrimSpace(getText(a.controls[idDeadzone]))); e == nil {
 		if n < 0 {
 			n = 0
@@ -5154,12 +6058,114 @@ func (a *appState) syncConfigFromUI() {
 		}
 		c.CameraDeadzone = n
 	}
-	c.PreserveThrust = isChecked(a.controls[idPreserve])
 	a.cfg = c
 	a.cfgMu.Unlock()
 }
 
+func (a *appState) handleValueEdit(spec valueSlider, notify int) {
+	if notify == EN_CHANGE {
+		if a.sliderChanging {
+			return
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(getText(a.controls[spec.editID])))
+		if err == nil && n >= spec.min && n <= spec.max {
+			procSendMessageW.Call(spec.hwnd, TBM_SETPOS, 1, uintptr(n))
+			procRedrawWindow.Call(a.hwnd, 0, 0, RDW_INVALIDATE)
+			if a.uiReady {
+				a.syncConfigFromUI()
+				saveConfig()
+			}
+		}
+		return
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(getText(a.controls[spec.editID])))
+	if err != nil {
+		position, _, _ := procSendMessageW.Call(spec.hwnd, TBM_GETPOS, 0, 0)
+		n = int(int32(position))
+		a.postStatus(fmt.Sprintf("Invalid %s; restored the last valid value of %d%%.", spec.name, n))
+	}
+	normalized := spec.normalize(n)
+	if n != normalized {
+		a.postStatus(fmt.Sprintf("%s adjusted to %d%% (supported range: %d-%d%%).", strings.ToUpper(spec.name[:1])+spec.name[1:], normalized, spec.min, spec.max))
+	}
+	a.sliderChanging = true
+	setText(a.controls[spec.editID], strconv.Itoa(normalized))
+	a.sliderChanging = false
+	procSendMessageW.Call(spec.hwnd, TBM_SETPOS, 1, uintptr(normalized))
+	if a.uiReady {
+		a.syncConfigFromUI()
+		saveConfig()
+	}
+	procRedrawWindow.Call(a.hwnd, 0, 0, RDW_INVALIDATE)
+}
+
 func (a *appState) onCommand(id, notify int) {
+	if a.applyingUI && notify == EN_CHANGE {
+		return
+	}
+	if spec, ok := a.valueSliderForEdit(id); ok && (notify == EN_CHANGE || notify == EN_KILLFOCUS) {
+		a.handleValueEdit(spec, notify)
+		return
+	}
+	if notify == BN_CLICKED {
+		if state := a.controls[id]; state != 0 && a.checkboxVisible[id] != 0 {
+			next := uintptr(0)
+			if !isChecked(state) {
+				next = BST_CHECKED
+			}
+			procSendMessageW.Call(state, BM_SETCHECK, next, 0)
+			procRedrawWindow.Call(a.checkboxVisible[id], 0, 0, RDW_INVALIDATE|RDW_UPDATENOW)
+		}
+	}
+	if notify == 0 || notify == BN_CLICKED {
+		switch id {
+		case idWindowMinimize:
+			procShowWindow.Call(a.hwnd, SW_MINIMIZE)
+			return
+		case idWindowMaximize:
+			if maximized, _, _ := procIsZoomed.Call(a.hwnd); maximized != 0 {
+				procShowWindow.Call(a.hwnd, SW_RESTORE)
+			} else {
+				procShowWindow.Call(a.hwnd, SW_MAXIMIZE)
+			}
+			return
+		case idWindowClose:
+			procSendMessageW.Call(a.hwnd, WM_CLOSE, 0, 0)
+			return
+		case idSectionSetup:
+			a.navigateToSection(idSectionSetup)
+			return
+		case idSectionTwist:
+			a.navigateToSection(idSectionTwist)
+			return
+		case idSectionMonitor:
+			a.navigateToSection(idSectionMonitor)
+			return
+		case idSectionBindings:
+			a.navigateToSection(idSectionBindings)
+			return
+		case idSectionFoot:
+			a.navigateToSection(idSectionFoot)
+			return
+		case idSectionDevices:
+			a.navigateToSection(idSectionDevices)
+			return
+		case idSelectHOSAS:
+			comboSetIndex(idControlMode, 0)
+			a.updateContextVisibility()
+			a.syncConfigFromUI()
+			saveConfig()
+			a.redrawAfterScroll()
+			return
+		case idSelectHOTAS:
+			comboSetIndex(idControlMode, 1)
+			a.updateContextVisibility()
+			a.syncConfigFromUI()
+			saveConfig()
+			a.redrawAfterScroll()
+			return
+		}
+	}
 	if id == idComboList && (notify == LBN_SELCHANGE || notify == LBN_DBLCLK) {
 		a.closeCombo(true)
 		return
@@ -5212,6 +6218,9 @@ func (a *appState) onCommand(id, notify int) {
 		a.cameraTestUntil = time.Now().Add(800 * time.Millisecond)
 		a.cameraTestMu.Unlock()
 		a.postStatus("Camera test: virtual Xbox Right Stick X = full LEFT for 0.8 seconds.")
+		return
+	case id == idShowOverlay && notify == BN_CLICKED:
+		a.showOverlay()
 		return
 	case id == idTestCamRight && notify == BN_CLICKED:
 		if !a.xboxReady.Load() {
@@ -5393,31 +6402,66 @@ func (a *appState) setOnFootButtonStates(highlights uint8) {
 	}
 }
 
+const stickDotSize = 12
+
+// stickDotOffset maps a -1..1 x/y pair (y positive = forward/up) to the dot's
+// pixel offset from its centered position inside a square box. NaN -> center.
+func stickDotOffset(boxSize int, x, y float64) (float64, float64) {
+	if math.IsNaN(x) {
+		x = 0
+	}
+	if math.IsNaN(y) {
+		y = 0
+	}
+	rangePx := float64(boxSize-stickDotSize) / 2.0
+	return clamp(x, -1, 1) * rangePx, -clamp(y, -1, 1) * rangePx
+}
+
 func (a *appState) moveStickDot(id, boxSize int, x, y float64) {
-	const dot = 12
 	h := a.controls[id]
 	base, ok := a.baseRects[h]
 	if h == 0 || !ok {
 		return
 	}
-	x = clamp(x, -1, 1)
-	y = clamp(y, -1, 1)
-	rangePx := float64(boxSize-dot) / 2.0
+	dx, dy := stickDotOffset(boxSize, x, y)
 	// Anchor movement to the dot's actual registered layout position.
 	// The twist-axis insert shifts that position down by 210px, while the
 	// original hardcoded 542px monitor origin was never updated in v1.98.
 	// Using baseRects also keeps dots correctly aligned during scrolling.
-	cx := float64(int(base.Left)-a.scrollX) + x*rangePx
-	cy := float64(int(base.Top)-a.scrollY) - y*rangePx
+	cx := float64(int(base.Left)-a.scrollX) + dx
+	cy := float64(int(base.Top)-a.scrollY) + dy
+	var old rect
+	procGetWindowRect.Call(h, uintptr(unsafe.Pointer(&old)))
+	procScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&old.Left)))
+	procScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&old.Right)))
+	clipChanged := a.applyChildClip(h, rect{Left: int32(cx), Top: int32(cy), Right: int32(cx) + stickDotSize, Bottom: int32(cy) + stickDotSize}, a.currentContentViewport())
 	procSetWindowPos.Call(
 		h,
-		0,
+		HWND_TOP,
 		uintptr(int(cx)),
 		uintptr(int(cy)),
-		uintptr(dot),
-		uintptr(dot),
-		SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE,
+		uintptr(stickDotSize),
+		uintptr(stickDotSize),
+		SWP_NOACTIVATE|SWP_NOCOPYBITS,
 	)
+	if clipChanged {
+		// The region changed without redraw; repaint the area the dot left.
+		procRedrawWindow.Call(a.hwnd, uintptr(unsafe.Pointer(&old)), 0, RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN)
+	}
+	redrawLiveMonitorDot(h)
+}
+
+func (a *appState) raiseLiveMonitorDots() {
+	for _, id := range []int{idLeftDot, idRightDot, idDriveSteerDot} {
+		if h := a.controls[id]; h != 0 {
+			procSetWindowPos.Call(h, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE)
+			redrawLiveMonitorDot(h)
+		}
+	}
+}
+
+func redrawLiveMonitorDot(h uintptr) {
+	procRedrawWindow.Call(h, 0, 0, RDW_INVALIDATE|RDW_NOERASE|RDW_UPDATENOW)
 }
 
 func (a *appState) refreshMonitor() {
@@ -5444,17 +6488,25 @@ func (a *appState) refreshMonitor() {
 			setText(a.controls[idLeftVectorText], "Monitor paused")
 			setText(a.controls[idRightVectorText], "Monitor paused")
 			setText(a.controls[idDriveSteerVectorText], "Monitor paused")
+			a.liveLeftThrust = 0
+			a.liveRightThrust = 0
+			a.redrawLiveThrustMeters()
 			a.visualsPaused = true
 		}
 		return
 	}
 	a.visualsPaused = false
+	leftThrust := clamp(m.Left, -1, 1)
+	rightThrust := clamp(m.Right, -1, 1)
+	if math.Abs(leftThrust-a.liveLeftThrust) >= 0.01 || math.Abs(rightThrust-a.liveRightThrust) >= 0.01 {
+		a.liveLeftThrust = leftThrust
+		a.liveRightThrust = rightThrust
+		a.redrawLiveThrustMeters()
+	}
 
-	mode := "Podracer Style: Average thrust"
+	mode := fmt.Sprintf("Podracer Style: Max throttle %d%%  |  Throttle curve %d%%  |  Max steering %d%%  |  Steer curve %d/%d%%", normalizeScalePercent(c.ThrottleScale), normalizeExpoPercent(c.ThrottleExpo), normalizeSteerScalePercent(c.SteerScale), normalizeExpoPercent(c.SteerExpo), normalizeExpoPercent(c.SteerExpo2))
 	if strings.EqualFold(normalizeControlMode(c.ControlMode), "HOTAS") {
 		mode = "Traditional HOTAS"
-	} else if c.PreserveThrust {
-		mode = "Podracer Style: Hybrid preserve thrust"
 	}
 	pedal := "Off"
 	if c.PedalID >= 0 {

@@ -1,0 +1,96 @@
+v2.0 — Release Notes
+=====================
+Modified version of Galactic Racer HOSAS / HOTAS Bridge by JaffaQuake and Mars.
+Modifications by G-Mein (https://github.com/G-Mein), GPL-3.0-or-later (section 5a notice).
+
+NEW NATIVE UI
+- New dark-card Go/Win32 GUI with custom window frame (no standard Windows
+  title bar), draggable title area, resize edges and caption buttons.
+- Sidebar pages: Steuerung, Buttons, Twist-Achsen, Zu Fuss, Eingabe & HidHide,
+  Live Monitor. Fixed profile selector above the content.
+- Start size 1380x616, dark owner-drawn scrollbar; scrolled content never
+  paints over the title bar, profile bar or status bar.
+- Bottom status bar with copyright notice of the original authors,
+  "Modified by G-Mein (github.com/G-Mein)", license and version.
+
+LIVE MONITOR
+- Stick maps for Left Stick, Right Stick and Drive/Steer, also on Steuerung.
+- "Show overlay": always-on-top, non-activating overlay in the top-right
+  corner; the red X closes it and restores the app.
+
+HOSAS DRIVING RESPONSE
+- Max throttle 10-200% (above 100% the stick sum is amplified, so full thrust
+  stays while the other stick pulls back for steering).
+- Throttle curve -100..+100 (positive = softer center, negative = more
+  aggressive center).
+- Steer curve 1 (one stick: center -> max steering) and Steer curve 2
+  (counter-stick: max steering -> 100%), each -100..+100, set separately.
+- Max steering 50-100% for one fully deflected stick; full counter-steer
+  (left forward + right back) always gives 100% steering.
+- THRUST/STEERING curve plots with a live dot for the current stick state.
+
+INCLUDED UPSTREAM v1.98.3
+- Lever-only Output Negative checkbox on both twist inputs (0..-100% output).
+  Invert still reverses lever travel independently; Centered is unchanged.
+
+COMPATIBILITY
+- Existing hosas_config.json files and learned bindings load without migration.
+  New keys (steer_expo2, output_negative, ...) default to previous behavior.
+- WinMM helper isolation and installer behavior are unchanged.
+v1.98.3 — Release Notes
+=====================
+- Added independent Output Negative checkboxes to the Left Twist Axis and Right
+  Twist Axis settings. They appear only when Axis Type is Lever.
+- Output Negative is off by default. Without it, a lever outputs 0..+100%;
+  with it, a lever outputs 0..-100% after deadzone.
+- Invert continues to reverse lever travel before applying the output sign.
+  This supports normal, inverted, negative, and inverted-negative behavior.
+- Fine Steering, Pitch, Move Camera, and Keyboard Keys use the resulting signed
+  lever output; Centered axis behavior is unchanged.
+- Older settings and learned bindings load without migration; each checkbox
+  persists under its own twist configuration as output_negative.
+- The v1.98.2 UI spacing and v1.98.1 display fixes are preserved.
+- Windows executables cross-compiled and arithmetic/JSON regression tests passed.
+  Native Windows UI and controller hardware still require user validation.
+
+v1.98.2 — Release Notes
+=====================
+- Shifted the Twist Axis section and both its configuration rows down by
+  22 logical pixels, increasing separation from the HOSAS/HOTAS controls
+  and reducing the gap above Rudder Pedals.
+- Removed the redundant "Independent analog inputs" explanation next to
+  the Twist Axis heading. Centered / Lever behavior remains in tooltips.
+- Preserved the v1.98.1 assignment-label and live-monitor dot fixes.
+- No changes to physical input normalization, learned mappings, persisted
+  configuration, the rudder-pedal controls or output behavior.
+
+v1.98.1 — Release Notes
+=====================
+- UI hotfix: widened assignment text, added two-line labels, taller mapping rows,
+  and multiline button captions, keeping readable VKB button IDs in both columns.
+- Fixed the live Left Stick / Right Stick / Drive-Steer indicator squares by
+  deriving their positions from shifted layout rectangles and scroll offsets.
+- Restored appropriate content scrolling for expanded mapping rows.
+- Added hover help with the full mapping assignment name.
+- No change to mappings, inputs, button binding keys, or control output semantics.
+
+v1.98 — Original Release Notes
+=====================
+- Added independent Left Twist Axis and Right Twist Axis configuration above
+  Rudder Pedals, with physical Device/Axis, Invert, independent Deadzone,
+  mutually exclusive Centered/Lever axis types (Centered default), and modes
+  Off / Fine steering / Move Camera / Pitch / Keyboard keys.
+- Added per-twist fine-steer authority, camera sensitivity/deadzone,
+  keyboard positive/negative key selectors and activation thresholds.
+- Analog twist axes read from the selected DirectInput or WinMM backend and
+  are merged with existing flight-control output; disconnected inputs are ignored.
+- Expanded 3-line live input monitor to show both twist values when inactive.
+- Moved Pitch Up/Down below standard Xbox mappings with the Look controls in
+  the 'Galactic Racer Specific Mappings' section. Added corresponding Xbox
+  stick-arrow labels to each row, including the keyboard-emulated Look rows.
+- Two-column mapping UI now has increased horizontal spacing.
+- Preserved v1.97 button assignment keys and legacy pedal behavior.
+- Preserved WinMM compatibility isolation from v1.96.1.
+- Existing hosas_config.json files load without required user migration.
+- Windows x64 native compilation passed with Go 1.23.2; runtime hardware/
+  UI compatibility still requires testing on a Windows PC with VKB controllers.

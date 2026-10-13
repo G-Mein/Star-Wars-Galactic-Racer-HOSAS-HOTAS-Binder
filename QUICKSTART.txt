@@ -1,5 +1,6 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE v1.98.3 — QUICK START
+GALACTIC RACER HOSAS / HOTAS BRIDGE v2.0 — QUICK START
 by JaffaQuake and Mars
+Modified version with additions by G-Mein (https://github.com/G-Mein)
 
 1. Extract ZIP and double-click Install.cmd (Windows x64).
 2. Input API: Auto (DirectInput first), DirectInput, or WinMM (isolated helper).

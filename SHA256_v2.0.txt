@@ -1,0 +1,3 @@
+SHA256 — v2.0 Windows x64 release binaries
+8e6a320f738be2404ba827ff4ab724946e0eab2bd25b2f252ab551042243aabb *GalacticRacerHOSAS.exe
+203342da3ac23d390771a0d2891bdeb5ec311f3e5a8395001734ec10b5d959c9 *GalacticRacerWinMMHelper.exe
