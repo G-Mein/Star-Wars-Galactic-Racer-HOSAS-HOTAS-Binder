@@ -1,9 +1,0 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE — v1.98.2 INSTALLER NOTES
-===========================================================
-- Installs GalacticRacerHOSAS.exe and GalacticRacerWinMMHelper.exe into Local AppData.
-- Preserves hosas_config.json including prior button bindings.
-- Validates packaged x64 Windows PE files before copying.
-- Locates/downloads an x64 ViGEmClient.dll when missing; checks for ViGEmBus.
-- Creates Desktop and Start Menu shortcuts using Windows special folders.
-- Isolated helper process retained for WinMM capability enumeration.
-- Installer is not executed here; install on Windows x64 to check dependencies.
