@@ -33,7 +33,7 @@ import (
 var embeddedAppIcon []byte
 
 const (
-	appTitle = "Galactic Racer HOSAS / HOTAS Bridge v1.98.2 — by JaffaQuake and Mars"
+	appTitle = "Galactic Racer HOSAS / HOTAS Bridge v1.98.3 — by JaffaQuake and Mars"
 
 	WS_OVERLAPPED  = 0x00000000
 	WS_CAPTION     = 0x00C00000
@@ -276,6 +276,8 @@ const (
 	idTwistRightLeftKey
 	idTwistRightRightKey
 	idTwistRightKeyThreshold
+	idTwistLeftOutputNegative
+	idTwistRightOutputNegative
 	idComboList = 1700
 	idLearnBase = 1200
 )
@@ -373,6 +375,7 @@ type auxiliaryAxisConfig struct {
 	DIGUID            string `json:"di_guid"`
 	Axis              int    `json:"axis"`
 	Invert            bool   `json:"invert"`
+	OutputNegative    bool   `json:"output_negative"`
 	AxisType          string `json:"axis_type"`
 	Deadzone          int    `json:"deadzone"`
 	Mode              string `json:"mode"`
@@ -443,7 +446,11 @@ func normalizeAuxiliaryValue(centered float64, v auxiliaryAxisConfig, deadzone i
 		if out <= dz {
 			return 0
 		}
-		return clamp((out-dz)/(1-dz), 0, 1)
+		out = clamp((out-dz)/(1-dz), 0, 1)
+		if v.OutputNegative {
+			return -out
+		}
+		return out
 	}
 	if v.Invert {
 		centered = -centered
@@ -3216,7 +3223,7 @@ func (a *appState) pollLoop() {
 						rep.ThumbRX = floatToStick(cameraValue)
 					}
 					// Each configured Pitch source contributes to the analog Xbox Left Stick Y.
-					// Inverted centered axes reverse direction; lever inputs remain non-negative.
+					// Centered Invert reverses direction; Lever Output Negative controls polarity.
 					if pitchAssigned {
 						rep.ThumbLY = floatToStick(pitchValue)
 					}
@@ -4271,6 +4278,13 @@ func (a *appState) updateContextVisibility() {
 		a.setGroupVisible(row.camera, strings.EqualFold(pedalModes[mi], "Move Camera"))
 		a.setGroupVisible(row.keys, strings.EqualFold(pedalModes[mi], "Keyboard keys"))
 	}
+	// Negative polarity is a lever-only option. Invert continues to reverse travel.
+	for _, twist := range []struct{ axisTypeID, negativeID int }{
+		{idTwistLeftAxisType, idTwistLeftOutputNegative},
+		{idTwistRightAxisType, idTwistRightOutputNegative},
+	} {
+		a.setGroupVisible([]uintptr{a.controls[twist.negativeID]}, comboIndex(twist.axisTypeID) == 1)
+	}
 
 	onFootModes := []string{"Off", "Thumbstick -> WASD", "Buttons -> WASD"}
 	oi := comboIndex(idOnFootMode)
@@ -4298,6 +4312,9 @@ func (a *appState) createTwistUI(left bool, y, detailY int) {
 	a.createEdit("6", 741, y, 41, 25, ids[4])
 	a.createLabel("Mode", 793, y+4, 43, 22)
 	a.createCombo(840, y, 267, 160, ids[5])
+	// Separate from Invert; placed on the detail row without overlapping mode options.
+	// Only visible for Lever axis type (see updateContextVisibility).
+	a.createCheck("Output Negative", 915, detailY+1, 176, 24, ids[12])
 	var fine, camera, keys []uintptr
 	fine = append(fine,
 		a.createLabel("Fine-steer authority", 150, detailY+4, 135, 24),
@@ -4582,11 +4599,12 @@ func (a *appState) createUI() {
 		a.tooltipForID(ids[0], name+": choose a physical joystick/twist/lever device, or None to disable it.")
 		a.tooltipForID(ids[1], "Select the physical analog axis (X/Y/Z/Rx/Ry/Rz/Slider) for this twist input.")
 		a.tooltipForID(ids[2], "Invert axis direction. Centered reverses sign; Lever reverses 0-100% travel.")
-		a.tooltipForID(ids[3], "Centered: negative/zero/positive (-100..+100). Lever: only positive travel (0..100); Invert reverses travel, not polarity. Only one type may be selected.")
+		a.tooltipForID(ids[3], "Centered: -100..+100 around midpoint. Lever: 0..100 travel; enable Output Negative for 0..-100. Invert reverses travel independently.")
 		a.tooltipForID(ids[4], "Independent twist deadzone percentage. For Lever, deadzone applies near 0% travel.")
 		a.tooltipForID(ids[5], "Same modes as rudder pedals: Off, Fine steering, Move Camera, Pitch, Keyboard keys. Camera and Pitch are analog Xbox outputs; Keyboard keys emits native key presses.")
-		a.tooltipForID(ids[9], "Keyboard key held when this twist input moves negative past threshold. Centered axes only.")
+		a.tooltipForID(ids[9], "Keyboard key held when this twist input moves negative past threshold. Lever axes can use this with Output Negative enabled.")
 		a.tooltipForID(ids[10], "Keyboard key held when this twist input moves positive past threshold.")
+		a.tooltipForID(ids[12], "Lever mode only: output 0 to -100% instead of 0 to +100%. Invert still independently reverses lever travel. Does not change Centered behavior.")
 	}
 	a.tooltipForID(idPedalMode, "Choose how the rudder axis is used. Pitch maps the pedal axis continuously to Xbox Left Stick Y; positive pedal input is Pitch Up and Pedal Invert reverses the direction. Only settings relevant to the selected mode are shown.")
 	a.tooltipForID(idPedalLeftKey, "Keyboard key held when the pedal axis moves left past the configured threshold. Includes Shift, left/right Control, Alt, Tab and other common keys.")
@@ -4838,15 +4856,16 @@ func (a *appState) applyConfigToUI() {
 
 func auxiliaryIDs(left bool) []int {
 	if left {
-		return []int{idTwistLeftDevice, idTwistLeftAxis, idTwistLeftInvert, idTwistLeftAxisType, idTwistLeftDeadzone, idTwistLeftMode, idTwistLeftStrength, idTwistLeftCameraSensitivity, idTwistLeftCameraDeadzone, idTwistLeftLeftKey, idTwistLeftRightKey, idTwistLeftKeyThreshold}
+		return []int{idTwistLeftDevice, idTwistLeftAxis, idTwistLeftInvert, idTwistLeftAxisType, idTwistLeftDeadzone, idTwistLeftMode, idTwistLeftStrength, idTwistLeftCameraSensitivity, idTwistLeftCameraDeadzone, idTwistLeftLeftKey, idTwistLeftRightKey, idTwistLeftKeyThreshold, idTwistLeftOutputNegative}
 	}
-	return []int{idTwistRightDevice, idTwistRightAxis, idTwistRightInvert, idTwistRightAxisType, idTwistRightDeadzone, idTwistRightMode, idTwistRightStrength, idTwistRightCameraSensitivity, idTwistRightCameraDeadzone, idTwistRightLeftKey, idTwistRightRightKey, idTwistRightKeyThreshold}
+	return []int{idTwistRightDevice, idTwistRightAxis, idTwistRightInvert, idTwistRightAxisType, idTwistRightDeadzone, idTwistRightMode, idTwistRightStrength, idTwistRightCameraSensitivity, idTwistRightCameraDeadzone, idTwistRightLeftKey, idTwistRightRightKey, idTwistRightKeyThreshold, idTwistRightOutputNegative}
 }
 
 func (a *appState) applyAuxiliaryAxisToUI(v auxiliaryAxisConfig, left bool) {
 	ids := auxiliaryIDs(left)
 	comboSetIndex(ids[1], v.Axis)
 	setChecked(a.controls[ids[2]], v.Invert)
+	setChecked(a.controls[ids[12]], v.OutputNegative)
 	if normalizeAxisType(v.AxisType) == "Lever" {
 		comboSetIndex(ids[3], 1)
 	} else {
@@ -4888,6 +4907,7 @@ func (a *appState) readAuxiliaryAxisFromUI(v auxiliaryAxisConfig, left bool) aux
 	v.DIGUID = comboGUID(ids[0])
 	v.Axis = comboIndex(ids[1])
 	v.Invert = isChecked(a.controls[ids[2]])
+	v.OutputNegative = isChecked(a.controls[ids[12]])
 	v.AxisType = []string{"Centered", "Lever"}[min(comboIndex(ids[3]), 1)]
 	v.Deadzone = readLimitedUIInt(a.controls[ids[4]], v.Deadzone, 0, 40)
 	modes := []string{"Off", "Fine steering", "Move Camera", "Pitch", "Keyboard keys"}

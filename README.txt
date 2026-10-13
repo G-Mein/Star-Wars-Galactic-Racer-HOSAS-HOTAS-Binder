@@ -1,4 +1,4 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE — v1.98.2
+GALACTIC RACER HOSAS / HOTAS BRIDGE — v1.98.3
 by JaffaQuake and Mars
 =========================================
 
@@ -34,9 +34,10 @@ INPUT / OUTPUT NOTES
 --------------------
 - Use the selected backend (Auto, DirectInput, WinMM) to choose each twist device
   and axis. DirectInput exposes up to eight axes, WinMM up to six.
-- Lever mode cannot produce negative axis values; when keyboard keys are used,
-  a lever can fire the positive key only. Invert reverses travel for lever
-  mode (0% ↔ 100%), not the sign.
+- Lever mode normally outputs 0% to +100%. The Lever-only Output Negative
+  checkbox changes the range to 0% to -100%, enabling negative steering, pitch,
+  camera, or keyboard-key output. Invert independently reverses lever travel
+  (0% ↔ 100%) without changing polarity.
 - Centered axis Invert reverses positive and negative directions.
 - Only modes that need extra settings show a second row for that twist.
 - Existing pedal mode Pitch and learned digital Pitch commands still work.
@@ -57,6 +58,8 @@ SOURCE
 ------
 Matching Go source, WinMMHelper source and Build-Local.cmd are in Source.
 
-UI improvements in v1.98.2: full-height assignment fields, clickable two-line button labels, and live monitor dots that remain in their grids when scrolling.
+UI improvements in v1.98.3: full-height assignment fields, clickable two-line button labels, and live monitor dots that remain in their grids when scrolling.
 
-v1.98.2 layout: Twist Axis shifted closer to Rudder Pedals; redundant axis-type note removed.
+v1.98.3 layout: Twist Axis shifted closer to Rudder Pedals; redundant axis-type note removed.
+
+v1.98.3: Lever-only Output Negative checkbox added to both twist inputs. Centered-mode behavior is unchanged.

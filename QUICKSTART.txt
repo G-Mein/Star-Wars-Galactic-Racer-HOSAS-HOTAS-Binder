@@ -1,4 +1,4 @@
-GALACTIC RACER HOSAS / HOTAS BRIDGE v1.98.2 — QUICK START
+GALACTIC RACER HOSAS / HOTAS BRIDGE v1.98.3 — QUICK START
 by JaffaQuake and Mars
 
 1. Extract ZIP and double-click Install.cmd (Windows x64).
@@ -7,7 +7,8 @@ by JaffaQuake and Mars
 4. Twist Axis: choose independent Left and Right Twist devices/axes.
    Type: Centered (-100%..+100%, default) or Lever (0%..100%).
    Modes: Off, Fine Steering, Move Camera, Pitch, Keyboard Keys.
-   Set Invert and Deadzone. Relevant mode settings appear beneath each twist.
+   Set Invert and Deadzone. Lever also offers Output Negative (0..-100%).
+   Relevant mode settings appear beneath each twist.
 5. Rudder Pedals remain independent and retain their established modes.
 6. Standard Xbox mappings: Learn/Clear button and hat assignments in two columns.
 7. Galactic Racer Specific Mappings: Pitch Up/Down and Look Left/Right/Back.
@@ -16,7 +17,9 @@ by JaffaQuake and Mars
 8. Click Save settings, then Initiate Xbox Controller.
 9. HidHide Setup may help if a game sees physical and virtual devices twice.
 
-NOTE: Lever axes are one-way and cannot produce negative axis values. The
-negative keyboard threshold/key is only usable with a centered twist input.
+NOTE: Lever mode normally outputs 0..+100%. Check Output Negative for
+0..-100% output (including negative Fine Steering and negative keyboard keys).
+Invert continues to reverse physical travel independently of output polarity.
+Output Negative appears only for Lever and is unchecked by default.
 
 Settings: %LOCALAPPDATA%\GalacticRacerHOSAS\hosas_config.json
